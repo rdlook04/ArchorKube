@@ -1,0 +1,34 @@
+import type { OwnershipProvider } from "./types";
+import { labelsProvider } from "./labels";
+import { manualProvider } from "./manual";
+import { namespaceProvider } from "./namespace";
+import { chainProviders } from "./chain";
+
+/**
+ * Copiá este archivo a `active.ts` y ajustalo a tu organización:
+ *
+ *   cp active.ts.example active.ts
+ *
+ * `active.ts` no se commitea (está en .gitignore) — es configuración de esta
+ * instalación, no del proyecto.
+ *
+ * Qué proveedor(es) de propiedad usa la app y en qué orden. `chainProviders`
+ * resuelve **campo por campo** (tier/squad/tribu/appCode): gana el primero
+ * que responde cada campo, no el primero que responde algo. Un workload
+ * puede sacar el squad de su label y el tier de una regla manual.
+ *
+ * Ver docs/OWNERSHIP.md para la lista completa de proveedores y cómo
+ * escribir uno nuevo (p.ej. para tu propio catálogo tipo Backstage/CMDB).
+ */
+export const ownership: OwnershipProvider = chainProviders(
+  manualProvider(), // excepciones a mano; vacío por defecto, no hace nada
+  labelsProvider, // el propio workload, vía labels/annotations de K8s
+  namespaceProvider, // último eslabón: el namespace como equipo
+);
+
+/** Proveedores ofrecidos en la UI (página Tiers → selector de fuente). */
+export const availableProviders: OwnershipProvider[] = [
+  labelsProvider,
+  namespaceProvider,
+  manualProvider(),
+];

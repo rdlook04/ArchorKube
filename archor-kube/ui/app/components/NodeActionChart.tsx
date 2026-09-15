@@ -1,0 +1,69 @@
+import React, { useMemo } from "react";
+
+import Colors from "@dynatrace/strato-design-tokens/colors";
+import { CategoricalBarChart } from "@dynatrace/strato-components/charts";
+import type { CategoricalBarChartData } from "@dynatrace/strato-components/charts";
+import { Flex } from "@dynatrace/strato-components/layouts";
+import { Heading, Paragraph } from "@dynatrace/strato-components/typography";
+import { ProgressCircle } from "@dynatrace/strato-components/content";
+import { useDql } from "@dynatrace-sdk/react-hooks";
+
+import { nodeActionBreakdown } from "../queries/density";
+import type { TierFilterValue } from "./TierFilters";
+
+/** Colores semánticos por acción (verde=eliminar/ahorro, ámbar=consolidar, gris=monitorear). */
+const ACTION_COLORS: Record<string, string> = {
+  CANDIDATO_ELIMINAR: Colors.Background.Container.Success.Accent,
+  CONSOLIDAR_SI_ES_POSIBLE: Colors.Background.Container.Warning.Accent,
+  MONITOREAR: Colors.Background.Container.Neutral.Accent,
+};
+
+interface BreakdownRecord {
+  category?: string;
+  accion?: string;
+  nodos?: number;
+}
+
+/**
+ * Gráfica categórica apilada: nodos por acción sugerida, agrupados por clúster.
+ * Los nodos no tienen tier/squad/tribu, así que la dimensión es fija (clúster)
+ * y no hay selector.
+ */
+export const NodeActionChart = ({ filters }: { filters: TierFilterValue }) => {
+  const { data, error, isLoading } = useDql({ query: nodeActionBreakdown(filters) });
+
+  const chartData = useMemo<CategoricalBarChartData[]>(() => {
+    const records = (data?.records ?? []) as BreakdownRecord[];
+    const byCategory = new Map<string, Record<string, number>>();
+    for (const r of records) {
+      const category = r.category ?? "(sin clúster)";
+      const accion = r.accion ?? "?";
+      const nodos = Number(r.nodos ?? 0);
+      const bucket = byCategory.get(category) ?? {};
+      bucket[accion] = (bucket[accion] ?? 0) + nodos;
+      byCategory.set(category, bucket);
+    }
+    return [...byCategory.entries()].map(([category, value]) => ({ category, value }));
+  }, [data?.records]);
+
+  return (
+    <Flex flexDirection="column" gap={8}>
+      <Heading level={4}>Nodos por acción y clúster</Heading>
+      {isLoading && <ProgressCircle aria-label="Cargando gráfica" />}
+      {error && <Paragraph>Error DQL: {error.message}</Paragraph>}
+      {!isLoading && !error && (
+        <CategoricalBarChart
+          data={chartData}
+          layout="horizontal"
+          groupMode="stacked"
+          colorPalette={ACTION_COLORS}
+          height={340}
+        >
+          <CategoricalBarChart.CategoryAxis label="Clúster" />
+          <CategoricalBarChart.ValueAxis label="Nodos" />
+          <CategoricalBarChart.Legend position="bottom" />
+        </CategoricalBarChart>
+      )}
+    </Flex>
+  );
+};

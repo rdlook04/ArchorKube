@@ -1,0 +1,114 @@
+/**
+ * ⚠️ CONFIGURACIÓN DE ESTA INSTALACIÓN.
+ *
+ * Copiá este archivo a `site.ts` y ajustalo a tu cluster:
+ *
+ *   cp site.ts.example site.ts
+ *
+ * `site.ts` no se commitea (está en .gitignore) — es configuración de esta
+ * instalación, no del proyecto. Junto con `ownership/active.ts` y
+ * `ownership/port.ts` (si lo usás), es todo lo que depende de tu
+ * organización.
+ */
+
+// ── Namespaces excluidos ─────────────────────────────────────────────────────
+
+/**
+ * Namespaces que no son carga de negocio y por tanto no deben generar
+ * hallazgos: plataforma de Kubernetes, agentes de observabilidad, ingress,
+ * herramientas de seguridad propias, etc.
+ *
+ * Vive en un solo sitio para que todos los módulos excluyan exactamente lo
+ * mismo. Estos son solo los que crea Kubernetes por defecto — agregá los de
+ * tu cluster (tu propio namespace de plataforma, tu ingress, tu agente de
+ * seguridad…).
+ */
+export const EXCLUDED_NAMESPACES_EXACT: string[] = [
+  "kube-public",
+  "kube-node-lease",
+  "default",
+];
+
+/**
+ * Además de la lista exacta, se descarta cualquier namespace cuyo nombre
+ * **contenga** alguno de estos fragmentos. Cubre variantes (kube-system,
+ * gatekeeper-system…) sin tener que mantener la lista exacta a mano.
+ */
+export const EXCLUDED_NAMESPACES_CONTAINING: string[] = ["system"];
+
+// ── Modelo de costos (FinOps) ────────────────────────────────────────────────
+
+/**
+ * Precio unitario mensual de cómputo, para valorizar el desperdicio. Orden
+ * de magnitud razonable en cualquier cluster; para cifras defendibles poné
+ * las de tu contrato (con reserved instances o un Enterprise Agreement el
+ * costo real suele ser 20-40 % menor que precio de lista).
+ */
+export const USD_VCPU_MONTH = 17.52;
+export const USD_GB_MONTH = 4.38;
+
+/** Horas facturables que se consideran un mes. */
+export const HOURS_PER_MONTH = 730;
+
+/**
+ * Precio por hora de cada tipo de instancia presente en tus clusters. Al
+ * aparecer un tipo nuevo hay que agregarlo aquí: los que falten quedan sin
+ * precio, en vez de asumir uno equivocado.
+ *
+ * Vacío a propósito: una tabla de SKUs ajena da cifras con aspecto de
+ * exactas que no lo son. Ejemplo de formato (Azure):
+ *
+ *   Standard_D4s_v4: 0.192,
+ */
+export const INSTANCE_HOURLY_USD: Record<string, number> = {};
+
+/** Nombre de la fuente de precios, para mostrarlo junto a las cifras. */
+export const PRICING_SOURCE = "configurá tu fuente de precios en site.ts";
+
+// -- Claves de propiedad en labels/annotations ------------------------------
+
+/**
+ * Que clave de label/annotation lleva cada dato de propiedad.
+ *
+ * Es lo primero que hay que ajustar si usas `labelsProvider`: casi ninguna
+ * organizacion usa las claves del ejemplo, y apuntar a las que YA existen
+ * cuesta una linea, mientras que reetiquetar mil workloads cuesta un trimestre.
+ *
+ * Para ver que hay en tu cluster:
+ *
+ *   fetch dt.entity.cloud_application
+ *   | fields lbl = cloudApplicationLabels
+ *   | limit 5
+ *
+ * Las annotations ganan sobre las labels: las labels de un pod template son
+ * inmutables en algunos controladores y las annotations no, asi que son la via
+ * para sobrescribir un workload puntual.
+ */
+export const OWNERSHIP_KEYS = {
+  tier: "archorkube.io/tier",
+  squad: "archorkube.io/owner",
+  tribu: "archorkube.io/domain",
+  appCode: "app.kubernetes.io/part-of",
+} as const;
+
+/**
+ * Valores de label que significan "sin asignar" y NO deben pasar por dueño.
+ *
+ * Un string vacio no es null en DQL, asi que sin esta lista `coalesce` lo toma
+ * como respuesta valida y el workload aparece con dueno "" — peor que aparecer
+ * sin dueno, porque el hueco deja de verse y nadie lo corrige.
+ *
+ * Lo mismo con los marcadores que los equipos ponen mientras deciden
+ * ("pendiente", "tbd", "n/a"). Se comparan en minusculas.
+ */
+export const OWNERSHIP_IGNORED_VALUES: string[] = [
+  "",
+  // El catalogo puede traer el string "None" como "sin asignar".
+  "none",
+  "n/a",
+  "na",
+  "tbd",
+  "pendiente",
+  "unknown",
+  "sin asignar",
+];

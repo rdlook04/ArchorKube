@@ -1,0 +1,28 @@
+node_modules/
+dist/
+.dt-app/
+*.log
+.claude/
+
+# Configuracion local con el environment de despliegue
+archor-kube/.env
+
+# Configuracion local de esta instalacion: catalogo de propiedad, que
+# proveedor(es) estan activos, y namespaces/precios reales. Cada uno tiene
+# su .example versionado; copiar y llenar como con .env.
+archor-kube/ui/app/ownership/port.ts
+archor-kube/ui/app/ownership/active.ts
+archor-kube/ui/app/config/site.ts
+
+# Bitacora interna: nombres de cluster, workloads, squads y cifras reales de
+# la organizacion. Decision de Ruben (2026-08-24, ver docs/TASKS.md): un solo
+# repo, asi que estos dos NO viajan al repo si se hace publico. Untrackeados
+# con `git rm --cached`; siguen existiendo en disco para uso local.
+docs/TASKS.md
+docs/SPEC.md
+
+# Plan de publicacion e issues de entrada: uso local, los issues se crean en
+# GitHub con gh. LINKEDIN.md estuvo trackeado hasta 2026-09-14 pese al aviso
+# de su encabezado; el squash previo a publicar borra ese historial.
+docs/LINKEDIN.md
+docs/ISSUES.md

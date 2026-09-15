@@ -1,0 +1,49 @@
+import type { OwnershipProvider } from "./types";
+
+/**
+ * PLANTILLA — este archivo es opcional.
+ *
+ * Si tu organización tiene un catálogo/IDP propio (Backstage, Port, un CMDB,
+ * una hoja de cálculo consultable), este es el lugar para el conector: un
+ * proveedor más que se agrega a la cadena en `active.ts`.
+ *
+ * Si no tenés nada de eso, no crees este archivo — con `labelsProvider` y
+ * `namespaceProvider` (los que trae `active.ts.example`) alcanza para
+ * arrancar. `port.ts` no se commitea (está en .gitignore) y no hace falta
+ * que exista.
+ *
+ * Copiá este archivo a `port.ts`, reemplazá el cuerpo por tu conector real,
+ * y agregalo a la cadena en `active.ts`. Ver docs/OWNERSHIP.md → "Escribir
+ * uno nuevo" para el contrato completo.
+ */
+
+const CATALOG_LOOKUP = "/lookups/<tu-catalogo>/components"; // ejemplo
+
+export const catalogProvider: OwnershipProvider = {
+  id: "catalog",
+  label: "Catálogo interno",
+  about: "La propiedad sale de <tu catálogo>: describí acá qué pasa cuando el dato falta, no solo cuando está.",
+
+  enrich: (sourceField, suffix = "") => `| lookup [
+  load "${CATALOG_LOOKUP}"
+  | fields name, owner, tier
+  ], sourceField:${sourceField}, lookupField:name,
+     fields:{squad${suffix} = owner, tier${suffix} = tier}
+| fieldsAdd tribu${suffix} = null, appCode${suffix} = null`,
+
+  /**
+   * Nombres canonicos de equipos y dominios, en `squad_canon` / `tribu_canon`.
+   * Declaralo solo si tu catalogo es la fuente autoritativa de nombres: sirve
+   * para que al encadenarlo con labels el mismo equipo no aparezca dos veces
+   * con dos grafias (nombre de display vs slug). Que sea la consulta mas barata
+   * que los liste: se ejecuta una vez por consulta de modulo.
+   */
+  canonicalNames: `load "/lookups/mi-catalogo/equipos"
+| fields squad_canon = title, tribu_canon = domain`,
+
+  filterOptions: `load "${CATALOG_LOOKUP}"
+| summarize componentes = count(), by:{squad = owner, tier}
+| sort squad asc`,
+
+  catalog: null,
+};
