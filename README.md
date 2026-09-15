@@ -1,5 +1,7 @@
 # ArchorKube
 
+*Español · [English](README.en.md)*
+
 Una app de Dynatrace que revisa buenas prácticas de Kubernetes y **le pone dueño a cada hallazgo**.
 
 > **El nombre.** *Arch* de arquitectura y *arconte* —del griego *arkhon*, «el que gobierna»: los magistrados que orquestaban el estado— sobre *Kube*rnetes. No es un tablero más que reporta: es el que manda en la cola, poniéndole dueño, criticidad y orden de atención a cada hallazgo.
