@@ -92,6 +92,12 @@ npm start
 
 None of those three files is committed (they're in `.gitignore`) — they're configuration of your installation, not of the project.
 
+**With an agent (Claude Code or similar), one minute.** Clone the repo, open the agent in `archor-kube/` and ask:
+
+> Set up ArchorKube for my tenant `https://<my-tenant>.apps.dynatrace.com`: copy the three `.example` files, use the labels provider and start the app.
+
+The three `.example` files document what goes in each one, so the agent doesn't have to guess. `dt-app` handles the login against your tenant in the browser the first time it starts; don't hand tokens to the agent.
+
 To deploy it to your tenant:
 
 ```bash
