@@ -12,11 +12,11 @@ import { WarningIcon } from "@dynatrace/strato-icons";
 const REPO_URL = "https://github.com/rdlook04/ArchorKube";
 
 /**
- * Versionada a propósito: si el texto del aviso cambia de fondo (por ejemplo
- * cuando exista la vista previa del envío a IA), se sube a v2 y todos lo
- * vuelven a ver una vez.
+ * Versionada a propósito: si el texto del aviso cambia de fondo se sube la
+ * versión y todos lo vuelven a ver una vez (v2: llegó la vista previa del
+ * envío a IA).
  */
-const DISMISS_KEY = "archorkube.community-notice.dismissed.v1";
+const DISMISS_KEY = "archorkube.community-notice.dismissed.v2";
 
 /** localStorage puede no existir o lanzar (modo privado, datos bloqueados). */
 export const isNoticeDismissed = (): boolean => {
@@ -47,9 +47,9 @@ interface CommunityNoticeProps {
  * (qué no es, dónde reportar, fork libre); los colores son los tokens de
  * advertencia de Strato, no una paleta propia.
  *
- * La línea de datos describe lo que la app hace HOY (solo lee Grail; lo que
- * sale, sale porque el usuario lo copia). Cuando exista la vista previa del
- * envío a IA, la promesa cambia y DISMISS_KEY sube de versión.
+ * La línea de datos es una promesa: todo envío a una IA externa pasa por el
+ * filtro y la vista previa (ai/useExternalSend). v2 desde que existe la vista
+ * previa; si la promesa vuelve a cambiar, DISMISS_KEY sube de versión.
  */
 export const CommunityNotice = ({ show, onClose }: CommunityNoticeProps) => {
   const [dontShowAgain, setDontShowAgain] = useState(isNoticeDismissed);
@@ -112,8 +112,8 @@ export const CommunityNotice = ({ show, onClose }: CommunityNoticeProps) => {
         </Flex>
         <Paragraph>Feel free to fork it for your own use.</Paragraph>
         <Paragraph style={{ color: Colors.Text.Neutral.Subdued }}>
-          ArchorKube only reads data from your tenant. Nothing leaves Dynatrace unless you copy it
-          or send it to an AI yourself.
+          ArchorKube only reads data from your tenant. When you send a finding to an AI outside
+          Dynatrace, only what you see in the preview leaves, filtered first.
         </Paragraph>
       </Flex>
     </Modal>

@@ -14,7 +14,8 @@
       { "name": "storage:files:read", "comment": "leer lookups (load) p.ej. tiers" },
       { "name": "storage:smartscape:read", "comment": "smartscapeNodes (HPA, topología K8s)" },
       { "name": "state:user-app-states:read", "comment": "preferencias del envío a IA por usuario" },
-      { "name": "state:user-app-states:write", "comment": "guardar esas preferencias desde Settings" }
+      { "name": "state:user-app-states:write", "comment": "guardar esas preferencias desde Settings" },
+      { "name": "storage:events:write", "comment": "registrar cada envío a una IA externa (bizevent sin contenido)" }
     ]
   }
 }

@@ -1,74 +1,26 @@
 import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
-import { Button } from "@dynatrace/strato-components/buttons";
-import { Menu } from "@dynatrace/strato-components/navigation";
-import { DotMenuIcon } from "@dynatrace/strato-icons";
-import { showToast } from "@dynatrace/strato-components/notifications";
 
 import { dotted, ModulePage } from "../components/ModulePage";
 import { ComplianceChart } from "../components/ComplianceChart";
 import { complianceReport, complianceSummary } from "../queries";
-import {
-  ASSIST_INTENT_OPTIONS,
-  assistCompliancePayload,
-  assistCompliancePrompt,
-} from "../queries/assist";
+import { assistCompliancePayload, assistCompliancePrompt } from "../queries/assist";
 import { workloadUrl } from "../queries/links";
-import { compliancePractices, useOpenGuide } from "../practices/flagged";
+import { compliancePractices } from "../practices/flagged";
+import { RowMenu } from "../components/RowMenu";
 
-/** Copia el prompt de Assist al portapapeles y avisa con un toast. */
-const copyAssistPrompt = (row: Record<string, unknown>) => {
-  navigator.clipboard
-    .writeText(assistCompliancePrompt(row))
-    .then(() =>
-      showToast({
-        title: "Prompt copiado",
-        message: "Pégalo en una conversación nueva de Dynatrace Assist (modo agéntico).",
-        type: "success",
-        lifespan: 4000,
-      }),
-    )
-    .catch(() =>
-      showToast({ title: "No se pudo copiar", type: "critical", lifespan: 4000 }),
-    );
-};
-
-/**
- * Menú por fila: por qué se marca (Guía), preguntar a Assist, copiar prompt y
- * abrir el workload. Es un componente porque navega dentro de la app.
- */
-const ComplianceRowMenu = ({ row }: { row: Record<string, unknown> }) => {
-  const openGuide = useOpenGuide();
-  const failing = compliancePractices(row);
-  const deploymentUrl = workloadUrl(row.deployment_id);
-  return (
-    <Menu>
-      <Menu.Trigger>
-        <Button aria-label="Abrir en Dynatrace">
-          <DotMenuIcon />
-        </Button>
-      </Menu.Trigger>
-      <Menu.Content>
-        <Menu.Item
-          disabled={failing.length === 0}
-          onSelect={() => openGuide(failing, row)}
-        >
-          Why is this flagged?
-        </Menu.Item>
-        <Menu.Intent payload={assistCompliancePayload(row)} options={ASSIST_INTENT_OPTIONS}>
-          Preguntar a Dynatrace Assist
-        </Menu.Intent>
-        <Menu.Item onSelect={() => copyAssistPrompt(row)}>
-          Copiar prompt para Assist
-        </Menu.Item>
-        <Menu.Link href={deploymentUrl ?? undefined} target="_blank" disabled={!deploymentUrl}>
-          Abrir workload (Kubernetes)
-        </Menu.Link>
-      </Menu.Content>
-    </Menu>
-  );
-};
+/** Menú por fila: el compartido de todos los módulos (ver components/RowMenu). */
+const ComplianceRowMenu = ({ row }: { row: Record<string, unknown> }) => (
+  <RowMenu
+    row={row}
+    module="Compliance"
+    prompt={assistCompliancePrompt}
+    assistPayload={assistCompliancePayload}
+    practices={compliancePractices}
+    links={[{ label: "Abrir workload (Kubernetes)", href: workloadUrl(row.deployment_id) }]}
+  />
+);
 
 /** Resalta la criticidad: rojo = riesgo de disponibilidad, verde = cumple todo. */
 const criticidadThresholds = [

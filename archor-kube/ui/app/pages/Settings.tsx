@@ -77,8 +77,9 @@ export const Settings = () => {
         <Heading level={2}>Sending to AI</Heading>
         <Paragraph>
           <Strong>Dynatrace Assist</Strong> always gets the full finding: it runs inside your
-          tenant. Every AI outside Dynatrace (the local Ollama bridge today, others later) gets the
-          finding through a data filter first.
+          tenant. Every AI outside Dynatrace (your local Ollama, or Claude, Gemini, ChatGPT and
+          others through the clipboard) gets the finding through a data filter first, and you see a
+          preview of exactly what leaves before it does.
         </Paragraph>
 
         <FormField>
@@ -102,8 +103,8 @@ export const Settings = () => {
               <Flex flexDirection="column" gap={2}>
                 <Text>Real Kubernetes names</Text>
                 <Hint>
-                  Namespace, workload, pod and container go out as they are. You get a warning
-                  before every send.
+                  Namespace, workload, pod and container go out as they are. The preview warns you
+                  every time.
                 </Hint>
               </Flex>
             </Radio>

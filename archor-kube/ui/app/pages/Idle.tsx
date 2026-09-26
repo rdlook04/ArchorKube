@@ -1,77 +1,29 @@
 import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
-import { Button } from "@dynatrace/strato-components/buttons";
-import { Menu } from "@dynatrace/strato-components/navigation";
-import { DotMenuIcon } from "@dynatrace/strato-icons";
-
-import { showToast } from "@dynatrace/strato-components/notifications";
 
 import { dotted, ModulePage } from "../components/ModulePage";
 import { IdleVerdictChart } from "../components/IdleVerdictChart";
 import { idleSummary, idleWorkloads } from "../queries";
-import { ASSIST_INTENT_OPTIONS, assistIdlePayload, assistIdlePrompt } from "../queries/assist";
+import { assistIdlePayload, assistIdlePrompt } from "../queries/assist";
 import { serviceUrl, workloadUrl } from "../queries/links";
-import { useExternalSend } from "../ai/useExternalSend";
-import { idlePractices, useOpenGuide } from "../practices/flagged";
+import { idlePractices } from "../practices/flagged";
+import { RowMenu } from "../components/RowMenu";
 
-/** Copia el prompt de Assist al portapapeles y avisa con un toast. */
-const copyAssistPrompt = (row: Record<string, unknown>) => {
-  navigator.clipboard
-    .writeText(assistIdlePrompt(row))
-    .then(() =>
-      showToast({
-        title: "Prompt copiado",
-        message: "Pégalo en una conversación nueva de Dynatrace Assist (modo agéntico).",
-        type: "success",
-        lifespan: 4000,
-      }),
-    )
-    .catch(() =>
-      showToast({ title: "No se pudo copiar", type: "critical", lifespan: 4000 }),
-    );
-};
-
-/**
- * Menú por fila con los deep links a Dynatrace (solo los disponibles).
- * Es un componente y no una función porque el envío a Ollama depende de la
- * preferencia del usuario (placeholders o datos reales), que vive en contexto.
- * Spike del puente (M15): solo en Ociosos hasta validarlo en el tenant.
- */
-const IdleRowMenu = ({ row }: { row: Record<string, unknown> }) => {
-  const sendToOllama = useExternalSend(assistIdlePrompt, "Idle");
-  const openGuide = useOpenGuide();
-  const flagged = idlePractices(row);
-  const serviceLink = serviceUrl(row.service_id);
-  const deploymentUrl = workloadUrl(row.deployment_id);
-  return (
-    <Menu>
-      <Menu.Trigger>
-        <Button aria-label="Abrir en Dynatrace">
-          <DotMenuIcon />
-        </Button>
-      </Menu.Trigger>
-      <Menu.Content>
-        <Menu.Item disabled={flagged.length === 0} onSelect={() => openGuide(flagged, row)}>
-          Why is this flagged?
-        </Menu.Item>
-        <Menu.Intent payload={assistIdlePayload(row)} options={ASSIST_INTENT_OPTIONS}>
-          Preguntar a Dynatrace Assist
-        </Menu.Intent>
-        <Menu.Item onSelect={() => copyAssistPrompt(row)}>
-          Copiar prompt para Assist
-        </Menu.Item>
-        <Menu.Item onSelect={() => sendToOllama(row)}>Send to local Ollama (preview)</Menu.Item>
-        <Menu.Link href={serviceLink ?? undefined} target="_blank" disabled={!serviceLink}>
-          Abrir servicio (APM)
-        </Menu.Link>
-        <Menu.Link href={deploymentUrl ?? undefined} target="_blank" disabled={!deploymentUrl}>
-          Abrir workload (Kubernetes)
-        </Menu.Link>
-      </Menu.Content>
-    </Menu>
-  );
-};
+/** Menú por fila: el compartido de todos los módulos (ver components/RowMenu). */
+const IdleRowMenu = ({ row }: { row: Record<string, unknown> }) => (
+  <RowMenu
+    row={row}
+    module="Idle"
+    prompt={assistIdlePrompt}
+    assistPayload={assistIdlePayload}
+    practices={idlePractices}
+    links={[
+      { label: "Abrir servicio (APM)", href: serviceUrl(row.service_id) },
+      { label: "Abrir workload (Kubernetes)", href: workloadUrl(row.deployment_id) },
+    ]}
+  />
+);
 
 /** Resalta el veredicto: verde = ocioso confirmado, rojo = roto (inestable). */
 const veredictoThresholds = [

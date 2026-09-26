@@ -1,54 +1,21 @@
 import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
-import { Button } from "@dynatrace/strato-components/buttons";
-import { Menu } from "@dynatrace/strato-components/navigation";
-import { DotMenuIcon } from "@dynatrace/strato-icons";
-import { showToast } from "@dynatrace/strato-components/notifications";
 
 import { dotted, ModulePage } from "../components/ModulePage";
 import { ErrorSeverityChart } from "../components/ErrorSeverityChart";
 import { criticalErrors, criticalErrorsSummary } from "../queries";
-import {
-  ASSIST_INTENT_OPTIONS,
-  assistErrorPayload,
-  assistErrorPrompt,
-} from "../queries/assist";
+import { assistErrorPayload, assistErrorPrompt } from "../queries/assist";
+import { RowMenu } from "../components/RowMenu";
 
-/** Copia el prompt de Assist al portapapeles y avisa con un toast. */
-const copyAssistPrompt = (row: Record<string, unknown>) => {
-  navigator.clipboard
-    .writeText(assistErrorPrompt(row))
-    .then(() =>
-      showToast({
-        title: "Prompt copiado",
-        message: "Pégalo en una conversación nueva de Dynatrace Assist (modo agéntico).",
-        type: "success",
-        lifespan: 4000,
-      }),
-    )
-    .catch(() =>
-      showToast({ title: "No se pudo copiar", type: "critical", lifespan: 4000 }),
-    );
-};
-
-/** Menú por fila: Assist + copiar prompt (los logs no traen workload id para deep link). */
-const errorRowActions = (row: Record<string, unknown>) => (
-  <Menu>
-    <Menu.Trigger>
-      <Button aria-label="Acciones de la fila">
-        <DotMenuIcon />
-      </Button>
-    </Menu.Trigger>
-    <Menu.Content>
-      <Menu.Intent payload={assistErrorPayload(row)} options={ASSIST_INTENT_OPTIONS}>
-        Preguntar a Dynatrace Assist
-      </Menu.Intent>
-      <Menu.Item onSelect={() => copyAssistPrompt(row)}>
-        Copiar prompt para Assist
-      </Menu.Item>
-    </Menu.Content>
-  </Menu>
+/** Menú por fila: el compartido de todos los módulos (ver components/RowMenu). */
+const ErrorsRowMenu = ({ row }: { row: Record<string, unknown> }) => (
+  <RowMenu
+    row={row}
+    module="Errors"
+    prompt={assistErrorPrompt}
+    assistPayload={assistErrorPayload}
+  />
 );
 
 /** Resalta la severidad: rojo = con críticos, ámbar = solo errores. */
@@ -148,7 +115,7 @@ export const Errors = () => (
         thresholds: criticosThresholds,
       },
     ]}
-    rowActions={errorRowActions}
+    rowActions={(row) => <ErrorsRowMenu row={row} />}
     summaryAside={(filters) => <ErrorSeverityChart filters={filters} />}
     detailFacets={[{ id: "severidad", label: "Severidad" }]}
     detailNoun="contenedores con errores (con críticos primero)"

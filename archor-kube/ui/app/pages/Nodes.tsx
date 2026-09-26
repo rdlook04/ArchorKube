@@ -1,54 +1,21 @@
 import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
-import { Button } from "@dynatrace/strato-components/buttons";
-import { Menu } from "@dynatrace/strato-components/navigation";
-import { DotMenuIcon } from "@dynatrace/strato-icons";
-import { showToast } from "@dynatrace/strato-components/notifications";
 
 import { dotted, ModulePage } from "../components/ModulePage";
 import { NodeActionChart } from "../components/NodeActionChart";
 import { nodeRightsizing, nodeRightsizingSummary } from "../queries";
-import {
-  ASSIST_INTENT_OPTIONS,
-  assistNodePayload,
-  assistNodePrompt,
-} from "../queries/assist";
+import { assistNodePayload, assistNodePrompt } from "../queries/assist";
+import { RowMenu } from "../components/RowMenu";
 
-/** Copia el prompt de Assist al portapapeles y avisa con un toast. */
-const copyAssistPrompt = (row: Record<string, unknown>) => {
-  navigator.clipboard
-    .writeText(assistNodePrompt(row))
-    .then(() =>
-      showToast({
-        title: "Prompt copiado",
-        message: "Pégalo en una conversación nueva de Dynatrace Assist (modo agéntico).",
-        type: "success",
-        lifespan: 4000,
-      }),
-    )
-    .catch(() =>
-      showToast({ title: "No se pudo copiar", type: "critical", lifespan: 4000 }),
-    );
-};
-
-/** Menú por fila: Assist + copiar prompt (los nodos no tienen deep link a workload). */
-const nodeRowActions = (row: Record<string, unknown>) => (
-  <Menu>
-    <Menu.Trigger>
-      <Button aria-label="Acciones de la fila">
-        <DotMenuIcon />
-      </Button>
-    </Menu.Trigger>
-    <Menu.Content>
-      <Menu.Intent payload={assistNodePayload(row)} options={ASSIST_INTENT_OPTIONS}>
-        Preguntar a Dynatrace Assist
-      </Menu.Intent>
-      <Menu.Item onSelect={() => copyAssistPrompt(row)}>
-        Copiar prompt para Assist
-      </Menu.Item>
-    </Menu.Content>
-  </Menu>
+/** Menú por fila: el compartido de todos los módulos (ver components/RowMenu). */
+const NodesRowMenu = ({ row }: { row: Record<string, unknown> }) => (
+  <RowMenu
+    row={row}
+    module="Nodes"
+    prompt={assistNodePrompt}
+    assistPayload={assistNodePayload}
+  />
 );
 
 /** Resalta la acción: verde = candidato a eliminar (ahorro), ámbar = consolidar. */
@@ -152,7 +119,7 @@ export const Nodes = () => (
       { id: "cluster_nodos", header: "Nodos clúster", accessor: "cluster_nodos", columnType: "number" },
       { id: "nodos_minimos_cluster", header: "Nodos mínimos", accessor: "nodos_minimos_cluster", columnType: "number" },
     ]}
-    rowActions={nodeRowActions}
+    rowActions={(row) => <NodesRowMenu row={row} />}
     summaryAside={(filters) => <NodeActionChart filters={filters} />}
     detailFacets={[{ id: "accion", label: "Acción" }, { id: "k8s.cluster.name", label: "Clúster" }]}
     detailNoun="nodos subutilizados (candidatos a eliminar primero)"

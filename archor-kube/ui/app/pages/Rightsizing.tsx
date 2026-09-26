@@ -1,68 +1,26 @@
 import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
-import { Button } from "@dynatrace/strato-components/buttons";
-import { Menu } from "@dynatrace/strato-components/navigation";
-import { DotMenuIcon } from "@dynatrace/strato-icons";
-import { showToast } from "@dynatrace/strato-components/notifications";
 
 import { dotted, ModulePage } from "../components/ModulePage";
 import { RightsizingProblemChart } from "../components/RightsizingProblemChart";
 import { rightsizingReport, rightsizingSummary } from "../queries";
-import {
-  ASSIST_INTENT_OPTIONS,
-  assistRightsizingPayload,
-  assistRightsizingPrompt,
-} from "../queries/assist";
+import { assistRightsizingPayload, assistRightsizingPrompt } from "../queries/assist";
 import { workloadUrl } from "../queries/links";
-import { rightsizingPractices, useOpenGuide } from "../practices/flagged";
+import { rightsizingPractices } from "../practices/flagged";
+import { RowMenu } from "../components/RowMenu";
 
-/** Copia el prompt de Assist al portapapeles y avisa con un toast. */
-const copyAssistPrompt = (row: Record<string, unknown>) => {
-  navigator.clipboard
-    .writeText(assistRightsizingPrompt(row))
-    .then(() =>
-      showToast({
-        title: "Prompt copiado",
-        message: "Pégalo en una conversación nueva de Dynatrace Assist (modo agéntico).",
-        type: "success",
-        lifespan: 4000,
-      }),
-    )
-    .catch(() =>
-      showToast({ title: "No se pudo copiar", type: "critical", lifespan: 4000 }),
-    );
-};
-
-/** Menú por fila: Assist + copiar prompt + deep link al workload. */
-const RightsizingRowMenu = ({ row }: { row: Record<string, unknown> }) => {
-  const openGuide = useOpenGuide();
-  const flagged = rightsizingPractices(row);
-  const deploymentUrl = workloadUrl(row.deployment_id);
-  return (
-    <Menu>
-      <Menu.Trigger>
-        <Button aria-label="Acciones de la fila">
-          <DotMenuIcon />
-        </Button>
-      </Menu.Trigger>
-      <Menu.Content>
-        <Menu.Item disabled={flagged.length === 0} onSelect={() => openGuide(flagged, row)}>
-          Why is this flagged?
-        </Menu.Item>
-        <Menu.Intent payload={assistRightsizingPayload(row)} options={ASSIST_INTENT_OPTIONS}>
-          Preguntar a Dynatrace Assist
-        </Menu.Intent>
-        <Menu.Item onSelect={() => copyAssistPrompt(row)}>
-          Copiar prompt para Assist
-        </Menu.Item>
-        <Menu.Link href={deploymentUrl ?? undefined} target="_blank" disabled={!deploymentUrl}>
-          Abrir workload (Kubernetes)
-        </Menu.Link>
-      </Menu.Content>
-    </Menu>
-  );
-};
+/** Menú por fila: el compartido de todos los módulos (ver components/RowMenu). */
+const RightsizingRowMenu = ({ row }: { row: Record<string, unknown> }) => (
+  <RowMenu
+    row={row}
+    module="Rightsizing"
+    prompt={assistRightsizingPrompt}
+    assistPayload={assistRightsizingPayload}
+    practices={rightsizingPractices}
+    links={[{ label: "Abrir workload (Kubernetes)", href: workloadUrl(row.deployment_id) }]}
+  />
+);
 
 /** Resalta el problema: rojo = throttling (riesgo), ámbar = subdimensionado. */
 const problemaThresholds = [
