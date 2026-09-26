@@ -11,6 +11,8 @@
  * organización.
  */
 
+import type { ExtraFilter } from "./extraFilters";
+
 // ── Namespaces excluidos ─────────────────────────────────────────────────────
 
 /**
@@ -112,3 +114,22 @@ export const OWNERSHIP_IGNORED_VALUES: string[] = [
   "unknown",
   "sin asignar",
 ];
+
+// ── Filtros opcionales ───────────────────────────────────────────────────────
+
+/**
+ * Labels o annotations de tus workloads que quieres como filtro extra, además
+ * de cluster, namespace, tier, tribu y squad. Por ejemplo una criticidad de
+ * negocio, un centro de costo o un producto.
+ *
+ * Cada una aparece como selector solo si la clave existe en tu tenant; si no,
+ * el filtro se esconde. La pestaña Setup muestra qué claves tienen tus
+ * workloads y cuántos las llevan.
+ *
+ *   export const EXTRA_FILTERS: ExtraFilter[] = [
+ *     { id: "criticality", label: "Business criticality", key: "business-criticality" },
+ *     { id: "costcenter", label: "Cost center", key: "cost-center" },
+ *   ];
+ */
+
+export const EXTRA_FILTERS: ExtraFilter[] = [];

@@ -5,12 +5,19 @@ import { Select } from "@dynatrace/strato-components/forms";
 import { useDql } from "@dynatrace-sdk/react-hooks";
 
 import type { QueryParams } from "../queries";
+import { EXTRA_FILTERS } from "../config/extraFilters";
+import type { ExtraFilter } from "../config/extraFilters";
 import {
   CLUSTER_FILTER_OPTIONS_QUERY,
+  NAMESPACE_FILTER_OPTIONS_QUERY,
   TIER_FILTER_OPTIONS_QUERY,
+  extraFilterOptionsQuery,
 } from "../queries/tierJoin";
 
-export type TierFilterValue = Pick<QueryParams, "tier" | "squad" | "tribu" | "cluster">;
+export type TierFilterValue = Pick<
+  QueryParams,
+  "tier" | "squad" | "tribu" | "cluster" | "namespace" | "extra"
+>;
 
 interface TierFiltersProps {
   value: TierFilterValue;
@@ -18,13 +25,69 @@ interface TierFiltersProps {
 }
 
 /**
- * Selectores transversales Tier / Squad / Tribu. Las opciones salen del
- * catálogo de propiedad activo. Los selectores se acotan entre sí:
- * elegir tribu reduce los squads, elegir tier reduce squads y tribus.
+ * Un filtro opcional por label (`EXTRA_FILTERS` en site.ts). Si la clave no
+ * existe en el tenant la consulta de opciones vuelve vacía y el selector no
+ * se muestra: un filtro sin valores solo confunde.
+ */
+const ExtraFilterSelect = ({
+  filter,
+  value,
+  onChange,
+}: {
+  filter: ExtraFilter;
+  value: string | undefined;
+  onChange: (value: string | undefined) => void;
+}) => {
+  const { data } = useDql({ query: extraFilterOptionsQuery(filter.key) });
+  const values = ((data?.records ?? []) as { value?: string }[])
+    .map((r) => r.value)
+    .filter((v): v is string => !!v);
+  if (values.length === 0) return null;
+  return (
+    <Select
+      aria-label={filter.label}
+      clearable
+      value={value ?? null}
+      onChange={(v) => onChange(v ?? undefined)}
+    >
+      <Select.Trigger placeholder={`${filter.label}: all`} />
+      <Select.Content>
+        {values.map((v) => (
+          <Select.Option key={v} value={v}>
+            {v}
+          </Select.Option>
+        ))}
+      </Select.Content>
+    </Select>
+  );
+};
+
+/**
+ * Selectores transversales: Cluster, Namespace, Tier, Tribu y Squad, más los
+ * filtros opcionales por label de `EXTRA_FILTERS`. Las opciones de propiedad
+ * salen del proveedor activo, y los selectores se acotan entre sí: elegir
+ * tribu reduce los squads, elegir clúster reduce los namespaces.
  */
 export const TierFilters = ({ value, onChange }: TierFiltersProps) => {
   const options = useDql({ query: TIER_FILTER_OPTIONS_QUERY });
   const clusterOptions = useDql({ query: CLUSTER_FILTER_OPTIONS_QUERY });
+  const namespaceOptions = useDql({ query: NAMESPACE_FILTER_OPTIONS_QUERY });
+
+  // Los namespaces se acotan al clúster elegido; sin clúster, todos.
+  const namespaces = useMemo(() => {
+    const records = (namespaceOptions.data?.records ?? []) as {
+      namespace?: string;
+      cluster?: string;
+    }[];
+    return [
+      ...new Set(
+        records
+          .filter((r) => !value.cluster || r.cluster === value.cluster)
+          .map((r) => r.namespace)
+          .filter((n): n is string => !!n),
+      ),
+    ].sort();
+  }, [namespaceOptions.data?.records, value.cluster]);
 
   const clusters = useMemo(() => {
     const records = (clusterOptions.data?.records ?? []) as { cluster?: string }[];
@@ -52,18 +115,36 @@ export const TierFilters = ({ value, onChange }: TierFiltersProps) => {
   }, [options.data?.records, value.tier, value.tribu]);
 
   return (
-    <Flex gap={8}>
+    <Flex gap={8} flexWrap="wrap">
       <Select
         aria-label="Cluster"
         clearable
         value={value.cluster ?? null}
-        onChange={(cluster) => onChange({ ...value, cluster: cluster ?? undefined })}
+        onChange={(cluster) =>
+          onChange({ ...value, cluster: cluster ?? undefined, namespace: undefined })
+        }
       >
         <Select.Trigger placeholder="Cluster: todos" />
         <Select.Content>
           {clusters.map((c) => (
             <Select.Option key={c} value={c}>
               {c}
+            </Select.Option>
+          ))}
+        </Select.Content>
+      </Select>
+      <Select
+        aria-label="Namespace"
+        clearable
+        value={value.namespace ?? null}
+        onChange={(namespace) => onChange({ ...value, namespace: namespace ?? undefined })}
+      >
+        <Select.Filter />
+        <Select.Trigger placeholder="Namespace: todos" />
+        <Select.Content>
+          {namespaces.map((n) => (
+            <Select.Option key={n} value={n}>
+              {n}
             </Select.Option>
           ))}
         </Select.Content>
@@ -113,6 +194,19 @@ export const TierFilters = ({ value, onChange }: TierFiltersProps) => {
           ))}
         </Select.Content>
       </Select>
+      {EXTRA_FILTERS.map((filter) => (
+        <ExtraFilterSelect
+          key={filter.id}
+          filter={filter}
+          value={value.extra?.[filter.id]}
+          onChange={(v) => {
+            const extra = { ...value.extra };
+            if (v) extra[filter.id] = v;
+            else delete extra[filter.id];
+            onChange({ ...value, extra });
+          }}
+        />
+      ))}
     </Flex>
   );
 };

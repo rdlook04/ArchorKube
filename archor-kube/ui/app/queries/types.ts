@@ -32,6 +32,10 @@ export interface QueryParams {
   tribu?: string;
   /** Filtro por clúster K8s (k8s.cluster.name). */
   cluster?: string;
+  /** Filtro por namespace (k8s.namespace.name). */
+  namespace?: string;
+  /** Filtros opcionales por label, por id de `EXTRA_FILTERS` → valor elegido. */
+  extra?: Record<string, string>;
 }
 
 export interface QueryDef {

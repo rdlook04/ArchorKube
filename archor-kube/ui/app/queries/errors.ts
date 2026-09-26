@@ -33,7 +33,7 @@ export const criticalErrors: QueryDef = {
     by: {k8s.container.name, k8s.namespace.name, k8s.cluster.name}
 | sort criticos desc, errores desc
 | limit 300
-${tierLookupJoin("k8s.container.name")}${tierFilterClause(params)}
+${tierLookupJoin("k8s.container.name")}${tierFilterClause(params, "k8s.container.name")}
 | fieldsAdd severidad = if(criticos > 0, "CON_CRITICOS", else: "SOLO_ERRORES")
 | fieldsAdd prioridad = if(criticos > 0, 1, else: 2)
 | sort prioridad asc, criticos desc, errores desc

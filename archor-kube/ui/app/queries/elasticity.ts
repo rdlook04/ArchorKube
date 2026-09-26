@@ -41,7 +41,7 @@ export const hpaElasticity: QueryDef = {
 | fieldsAdd prioridad = if(elasticidad == "BLOQUEADO_NECESITA_MAX", 1,
                         else: if(elasticidad == "SIN_MARGEN_MIN_ES_MAX", 2, else: 3))
 ${deploymentIdJoin("hpa_name")}
-${tierLookupJoin("hpa_name")}${tierFilterClause(params)}
+${tierLookupJoin("hpa_name")}${tierFilterClause(params, "hpa_name")}
 | sort prioridad asc, tier asc
 | fields
     k8s.cluster.name,

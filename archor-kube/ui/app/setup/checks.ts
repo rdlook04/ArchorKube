@@ -1,6 +1,7 @@
 import { stateClient } from "@dynatrace-sdk/client-state";
 
 import { EXCLUDED_NAMESPACES_EXACT, INSTANCE_HOURLY_USD, OWNERSHIP_KEYS } from "../config/site";
+import { EXTRA_FILTERS } from "../config/extraFilters";
 import { ownership } from "../ownership";
 import { excludedNamespacesClause } from "../queries/namespaces";
 import type { Records } from "./runQuery";
@@ -89,6 +90,13 @@ const FIELD_HINTS: Record<keyof typeof OWNERSHIP_KEYS, RegExp> = {
 };
 
 /**
+ * Claves que suelen servir como filtro sin ser dueño ni tier: criticidad de
+ * negocio, centro de costo, producto, entorno.
+ */
+const FILTER_HINTS =
+  /critical|criticality|cost|center|centro|product|producto|business|negocio|environment|env$/i;
+
+/**
  * Cuenta en qué porcentaje de workloads aparece cada clave de label o
  * annotation, y compara con las claves configuradas en `config/site.ts`.
  */
@@ -141,9 +149,8 @@ const evaluateLabelDiscovery = (records: Records): CheckResult => {
       (samples.get(configured)?.size ?? 0) === 0 ||
       numeric(configured) === numeric(best[0]);
     if (best && bestPct >= configuredPct + 10 && !sameScale) {
-      items.push(
-        `${field}: "${configured}" is on ${configuredPct}% of workloads${sample(configured)}. "${best[0]}" is on ${bestPct}%${sample(best[0])}, but its values look like a different field.`,
-      );
+      // Otro dato, no un reemplazo: se ofrece como filtro opcional más abajo.
+      items.push(`${field}: "${configured}" is on ${configuredPct}% of workloads.`);
     } else if (best && bestPct >= configuredPct + 10) {
       suggestions++;
       items.push(
@@ -153,6 +160,33 @@ const evaluateLabelDiscovery = (records: Records): CheckResult => {
       items.push(`${field}: "${configured}" is on ${configuredPct}% of workloads.`);
     }
   }
+
+  // Filtros opcionales ya configurados: si la clave no existe, el selector se
+  // esconde, así que conviene saberlo aquí y no por su ausencia en la UI.
+  for (const filter of EXTRA_FILTERS) {
+    const share = pct(coverage.get(filter.key) ?? 0, total);
+    items.push(
+      share > 0
+        ? `Optional filter "${filter.label}": "${filter.key}" is on ${share}% of workloads${sample(filter.key)}.`
+        : `Optional filter "${filter.label}": "${filter.key}" wasn't found, so the filter is hidden.`,
+    );
+  }
+
+  // Claves que suelen servir como filtro y todavía no se usan en ningún lado.
+  const used = new Set<string>([
+    ...Object.values(OWNERSHIP_KEYS),
+    ...EXTRA_FILTERS.map((f) => f.key),
+  ]);
+  const candidates = [...coverage.entries()]
+    .filter(([k, n]) => !used.has(k) && FILTER_HINTS.test(k) && pct(n, total) >= 10)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  for (const [key, n] of candidates) {
+    items.push(
+      `Could be an optional filter: "${key}" is on ${pct(n, total)}% of workloads${sample(key)}. Add it to EXTRA_FILTERS in ui/app/config/site.ts.`,
+    );
+  }
+
   return {
     status: suggestions > 0 ? "warn" : "ok",
     detail:
@@ -342,9 +376,9 @@ ${ownership.enrich("k8s.workload.name")}
     kind: "query",
     id: "label-discovery",
     group: "ownership",
-    title: "Ownership label keys",
-    affects: ["Ownership (labels provider)"],
-    fix: "Copy the suggested keys into OWNERSHIP_KEYS in ui/app/config/site.ts, then re-run Setup.",
+    title: "Ownership label keys and optional filters",
+    affects: ["Ownership (labels provider)", "Optional filters"],
+    fix: "Copy suggested ownership keys into OWNERSHIP_KEYS, and keys you want to filter by into EXTRA_FILTERS, both in ui/app/config/site.ts. Then re-run Setup.",
     query:
       "fetch dt.entity.cloud_application | fields lbl = cloudApplicationLabels, ann = kubernetesAnnotations | limit 10000",
     maxRecords: 10000,
