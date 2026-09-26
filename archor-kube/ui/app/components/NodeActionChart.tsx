@@ -10,6 +10,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 
 import { nodeActionBreakdown } from "../queries/density";
 import type { TierFilterValue } from "./TierFilters";
+import { useT } from "../i18n";
 
 /** Colores semánticos por acción (verde=eliminar/ahorro, ámbar=consolidar, gris=monitorear). */
 const ACTION_COLORS: Record<string, string> = {
@@ -30,13 +31,15 @@ interface BreakdownRecord {
  * y no hay selector.
  */
 export const NodeActionChart = ({ filters }: { filters: TierFilterValue }) => {
+  const { t } = useT();
+  const c = t.chart;
   const { data, error, isLoading } = useDql({ query: nodeActionBreakdown(filters) });
 
   const chartData = useMemo<CategoricalBarChartData[]>(() => {
     const records = (data?.records ?? []) as BreakdownRecord[];
     const byCategory = new Map<string, Record<string, number>>();
     for (const r of records) {
-      const category = r.category ?? "(sin clúster)";
+      const category = r.category ?? c.noCluster;
       const accion = r.accion ?? "?";
       const nodos = Number(r.nodos ?? 0);
       const bucket = byCategory.get(category) ?? {};
@@ -44,13 +47,13 @@ export const NodeActionChart = ({ filters }: { filters: TierFilterValue }) => {
       byCategory.set(category, bucket);
     }
     return [...byCategory.entries()].map(([category, value]) => ({ category, value }));
-  }, [data?.records]);
+  }, [data?.records, c.noCluster]);
 
   return (
     <Flex flexDirection="column" gap={8}>
-      <Heading level={4}>Nodos por acción y clúster</Heading>
-      {isLoading && <ProgressCircle aria-label="Cargando gráfica" />}
-      {error && <Paragraph>Error DQL: {error.message}</Paragraph>}
+      <Heading level={4}>{c.nodesByAction}</Heading>
+      {isLoading && <ProgressCircle aria-label={c.loading} />}
+      {error && <Paragraph>{c.dqlError} {error.message}</Paragraph>}
       {!isLoading && !error && (
         <CategoricalBarChart
           data={chartData}
@@ -59,8 +62,8 @@ export const NodeActionChart = ({ filters }: { filters: TierFilterValue }) => {
           colorPalette={ACTION_COLORS}
           height={340}
         >
-          <CategoricalBarChart.CategoryAxis label="Clúster" />
-          <CategoricalBarChart.ValueAxis label="Nodos" />
+          <CategoricalBarChart.CategoryAxis label={c.axis.cluster} />
+          <CategoricalBarChart.ValueAxis label={c.axis.nodes} />
           <CategoricalBarChart.Legend position="bottom" />
         </CategoricalBarChart>
       )}

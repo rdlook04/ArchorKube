@@ -11,18 +11,13 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 
 import { type BreakdownDimension, elasticityBreakdown } from "../queries/elasticity";
 import type { TierFilterValue } from "./TierFilters";
+import { useT } from "../i18n";
 
 /** Colores semánticos por elasticidad (rojo=bloqueado, ámbar=sin margen, verde=OK). */
 const ELASTICITY_COLORS: Record<string, string> = {
   BLOQUEADO_NECESITA_MAX: Colors.Background.Container.Critical.Accent,
   SIN_MARGEN_MIN_ES_MAX: Colors.Background.Container.Warning.Accent,
   OK: Colors.Background.Container.Success.Accent,
-};
-
-const DIMENSION_LABEL: Record<BreakdownDimension, string> = {
-  tier: "Tier",
-  squad: "Squad",
-  tribu: "Tribu",
 };
 
 interface BreakdownRecord {
@@ -36,6 +31,8 @@ interface BreakdownRecord {
  * dimensión elegida (tier/squad/tribu).
  */
 export const ElasticityChart = ({ filters }: { filters: TierFilterValue }) => {
+  const { t } = useT();
+  const c = t.chart;
   const [dimension, setDimension] = useState<BreakdownDimension>("tier");
   const { data, error, isLoading } = useDql({ query: elasticityBreakdown(dimension, filters) });
 
@@ -43,7 +40,7 @@ export const ElasticityChart = ({ filters }: { filters: TierFilterValue }) => {
     const records = (data?.records ?? []) as BreakdownRecord[];
     const byCategory = new Map<string, Record<string, number>>();
     for (const r of records) {
-      const category = r.category ?? "(sin dato)";
+      const category = r.category ?? c.noData;
       const elasticidad = r.elasticidad ?? "?";
       const hpas = Number(r.hpas ?? 0);
       const bucket = byCategory.get(category) ?? {};
@@ -51,27 +48,27 @@ export const ElasticityChart = ({ filters }: { filters: TierFilterValue }) => {
       byCategory.set(category, bucket);
     }
     return [...byCategory.entries()].map(([category, value]) => ({ category, value }));
-  }, [data?.records]);
+  }, [data?.records, c.noData]);
 
   return (
     <Flex flexDirection="column" gap={8}>
       <Flex justifyContent="space-between" alignItems="center" gap={8}>
-        <Heading level={4}>Elasticidad por {DIMENSION_LABEL[dimension].toLowerCase()}</Heading>
+        <Heading level={4}>{c.by(c.nouns.elasticity, c.dimension[dimension])}</Heading>
         <Select
-          aria-label="Agrupar por"
+          aria-label={c.groupBy}
           value={dimension}
           onChange={(value) => value && setDimension(value)}
         >
           <Select.Trigger />
           <Select.Content>
-            <Select.Option value="tier">Tier</Select.Option>
-            <Select.Option value="squad">Squad</Select.Option>
-            <Select.Option value="tribu">Tribu</Select.Option>
+            <Select.Option value="tier">{c.dimension.tier}</Select.Option>
+            <Select.Option value="squad">{c.dimension.squad}</Select.Option>
+            <Select.Option value="tribu">{c.dimension.tribu}</Select.Option>
           </Select.Content>
         </Select>
       </Flex>
-      {isLoading && <ProgressCircle aria-label="Cargando gráfica" />}
-      {error && <Paragraph>Error DQL: {error.message}</Paragraph>}
+      {isLoading && <ProgressCircle aria-label={c.loading} />}
+      {error && <Paragraph>{c.dqlError} {error.message}</Paragraph>}
       {!isLoading && !error && (
         <CategoricalBarChart
           data={chartData}
@@ -80,8 +77,8 @@ export const ElasticityChart = ({ filters }: { filters: TierFilterValue }) => {
           colorPalette={ELASTICITY_COLORS}
           height={340}
         >
-          <CategoricalBarChart.CategoryAxis label={DIMENSION_LABEL[dimension]} />
-          <CategoricalBarChart.ValueAxis label="HPAs" />
+          <CategoricalBarChart.CategoryAxis label={c.dimension[dimension]} />
+          <CategoricalBarChart.ValueAxis label={c.axis.hpas} />
           <CategoricalBarChart.Legend position="bottom" />
         </CategoricalBarChart>
       )}

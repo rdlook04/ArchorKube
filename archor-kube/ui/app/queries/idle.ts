@@ -35,11 +35,11 @@ export const MEM_RANGE_UNKNOWN = "(sin memoria reservada)";
 export const idleWorkloads: QueryDef = {
   id: "idle.workloads",
   module: "idle",
-  title: "Candidatos por CPU baja con veredicto de tráfico y estabilidad (7 días)",
+  title: { en: "Low-CPU candidates with a traffic and stability verdict (7 days)", es: "Candidatos por CPU baja con veredicto de tráfico y estabilidad (7 días)" },
   description:
-    "Regla de Oro: ocioso real = sin requests + sin caídas + CPU ≈ 0 en 7 días",
+    { en: "Golden rule: truly idle = no requests + no crashes + CPU ≈ 0 over 7 days", es: "Regla de Oro: ocioso real = sin requests + sin caídas + CPU ≈ 0 en 7 días" },
   window: rangeWindow(168,
-    "Actividad de los últimos 7 días. La ventana es larga a propósito: un workload solo cuenta como ocioso si no tuvo tráfico ni consumo en toda la semana.",
+    { en: "Activity over the last 7 days. The window is long on purpose: a workload only counts as idle if it had no traffic or usage for the whole week.", es: "Actividad de los últimos 7 días. La ventana es larga a propósito: un workload solo cuenta como ocioso si no tuvo tráfico ni consumo en toda la semana." },
   ),
   build: (params) => `timeseries {
   cpu = avg(dt.kubernetes.container.cpu_usage),
@@ -148,10 +148,10 @@ export const idleBreakdown = (dimension: BreakdownDimension, params?: Parameters
 export const idleSummary: QueryDef = {
   id: "idle.summary",
   module: "idle",
-  title: "Resumen por veredicto y tier",
-  description: "Cantidad de workloads por veredicto de la Regla de Oro y tier",
+  title: { en: "Summary by verdict and tier", es: "Resumen por veredicto y tier" },
+  description: { en: "Workloads by golden-rule verdict and tier", es: "Cantidad de workloads por veredicto de la Regla de Oro y tier" },
   window: rangeWindow(168,
-    "Actividad de los últimos 7 días.",
+    { en: "Activity over the last 7 days.", es: "Actividad de los últimos 7 días." },
   ),
   build: (params) =>
     `${idleWorkloads.build(params)}\n| summarize workloads = count(), perdida_mes_usd = round(sum(perdida_mes_usd), decimals:0), by:{prioridad, veredicto, tier}\n| sort prioridad asc, tier asc\n| fields veredicto, tier, workloads, perdida_mes_usd`,

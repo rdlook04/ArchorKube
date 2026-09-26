@@ -196,6 +196,164 @@ export const en = {
     missingPermission: (message: string) => `Missing permission: ${message}`,
     checkFailed: (message: string) => `The check failed: ${message}`,
   },
+  module: {
+    details: "Details",
+    aboutTitle: "About this module",
+    close: "Close",
+    refresh: "Refresh",
+    loadingSummary: "Loading summary",
+    loadingDetail: "Loading detail",
+    dqlError: "DQL error:",
+    all: "All",
+    ofTotal: (total: number) => ` (of ${total})`,
+    queriedAt: (clock: string) => `queried ${clock}`,
+    simpleTitle: "In plain words",
+    simpleWhat: "What am I looking at?",
+    simpleWhy: "Why should I care?",
+    simpleAction: "What do I do with this?",
+    windowTitle: "Analysis window",
+    glossaryTitle: "Glossary: what does each term mean?",
+    dqlTitle: "Query that ran (for the technical team)",
+    dqlHint:
+      "This is the exact DQL that produced the tables above, with your current filters applied. You can copy it and run it in a Dynatrace notebook to check any number.",
+    glossary: [
+      {
+        term: "Cluster",
+        meaning:
+          "The set of machines where the applications run. There can be several (for example one for production and one for non-production).",
+      },
+      {
+        term: "Node",
+        meaning:
+          "One of those machines (a server). The cluster spreads the applications across its nodes.",
+      },
+      {
+        term: "Pod",
+        meaning:
+          "A running copy of an application. If an application has 3 copies to handle the load, those are 3 pods.",
+      },
+      {
+        term: "Workload",
+        meaning:
+          "The application itself, with all its copies. It's what a squad recognizes as 'its service'.",
+      },
+      {
+        term: "Namespace",
+        meaning:
+          "A folder inside the cluster that groups related applications and keeps them apart from the rest.",
+      },
+      {
+        term: "Request (reservation)",
+        meaning:
+          "The CPU and memory the application asks to have reserved for itself. It's paid for whether it's used or not: it's the basis of the waste calculation.",
+      },
+      {
+        term: "Limit (cap)",
+        meaning:
+          "The most CPU and memory the application may use. If it hits it, the system slows it down or restarts it.",
+      },
+      {
+        term: "Throttling (slowdown)",
+        meaning:
+          "When an application asks for more CPU than its cap allows, the system slows it down on purpose. End users feel it as slowness.",
+      },
+      {
+        term: "OOM kill",
+        meaning:
+          "The system kills the application because it ran out of memory. It goes down and starts again, losing whatever it was doing.",
+      },
+      {
+        term: "Probe (health check)",
+        meaning:
+          "An automatic check that asks 'are you still alive?' and 'can you take requests yet?'. Without it, the system sends traffic to copies that don't answer.",
+      },
+      {
+        term: "Replica",
+        meaning:
+          "Each copy of the application. With only one, any failure takes it out of service; with several, the others keep serving.",
+      },
+      {
+        term: "HPA (autoscaling)",
+        meaning:
+          "The mechanism that adds or removes copies on its own, based on load. Once it reaches its maximum, it can't grow any more even if it's needed.",
+      },
+      {
+        term: "Tier",
+        meaning:
+          "How critical the application is for the business, according to the ownership catalog. Tier 1 is the most critical.",
+      },
+      {
+        term: "Squad / Tribe",
+        meaning:
+          "The team that owns the application and the area it belongs to. It tells you whose job it is to act.",
+      },
+      {
+        term: "Grail / DQL",
+        meaning:
+          "Grail is the Dynatrace database where everything observed is stored, and DQL is the language used to query it. Every number in this app comes from a live DQL query.",
+      },
+    ],
+    filters: {
+      cluster: "Cluster",
+      clusterAll: "Cluster: all",
+      namespace: "Namespace",
+      namespaceAll: "Namespace: all",
+      tier: "Tier",
+      tierAll: "Tier: all",
+      tribu: "Tribe",
+      tribuAll: "Tribe: all",
+      squad: "Squad",
+      squadAll: "Squad: all",
+      extraAll: (label: string) => `${label}: all`,
+    },
+  },
+  chart: {
+    groupBy: "Group by",
+    loading: "Loading chart",
+    loadingTrend: "Loading node trend",
+    noData: "(no data)",
+    noCluster: "(no cluster)",
+    noNode: "(no node)",
+    noTier: "(no tier)",
+    dqlError: "DQL error:",
+    dimension: {
+      tier: "Tier",
+      squad: "Squad",
+      tribu: "Tribe",
+      rango_mem: "Reserved memory range",
+      uso_vs_reserva: "Usage vs. reservation",
+    } as Record<string, string>,
+    by: (noun: string, dimension: string) => `${noun} by ${dimension.toLowerCase()}`,
+    nouns: {
+      verdicts: "Verdicts",
+      criticality: "Criticality",
+      elasticity: "Elasticity",
+      severity: "Severity",
+      orphans: "Orphans",
+      signals: "Signals",
+      problems: "Problems",
+      risk: "Risk",
+    },
+    axis: {
+      workloads: "Workloads",
+      pods: "Pods",
+      hpas: "HPAs",
+      containers: "Containers",
+      nodes: "Nodes",
+      node: "Node",
+      cluster: "Cluster",
+      hostUsage: "% host usage",
+      repos: "Repos",
+      tier: "Tier",
+    },
+    nodesByAction: "Nodes by action and cluster",
+    noSaturation: "No node is above 80% of host CPU or memory.",
+    saturationTitle: "Node saturation (host CPU/MEM > 80%)",
+    nodeHealthTitle: "Node health by cluster",
+    reposByTier: "Repositories by tier",
+    activeNodesPerDay: "Active nodes per day (30 days)",
+    spendGrowing: "is spend growing?",
+  },
 };
 
 export type UiText = typeof en;
@@ -395,5 +553,163 @@ export const es: UiText = {
     runAgain: "Volver a revisar",
     missingPermission: (message: string) => `Falta un permiso: ${message}`,
     checkFailed: (message: string) => `El chequeo falló: ${message}`,
+  },
+  module: {
+    details: "Detalles",
+    aboutTitle: "Acerca de este módulo",
+    close: "Cerrar",
+    refresh: "Actualizar",
+    loadingSummary: "Cargando resumen",
+    loadingDetail: "Cargando detalle",
+    dqlError: "Error DQL:",
+    all: "Todos",
+    ofTotal: (total: number) => ` (de ${total})`,
+    queriedAt: (clock: string) => `consultado ${clock}`,
+    simpleTitle: "En palabras simples",
+    simpleWhat: "¿Qué estoy viendo?",
+    simpleWhy: "¿Por qué me importa?",
+    simpleAction: "¿Qué hago con esto?",
+    windowTitle: "Ventana de análisis",
+    glossaryTitle: "Glosario: ¿qué significa cada término?",
+    dqlTitle: "Consulta que se ejecutó (para el equipo técnico)",
+    dqlHint:
+      "Este es el DQL exacto que produjo las tablas de arriba, con los filtros que tengas puestos ya aplicados. Puedes copiarlo y ejecutarlo en un notebook de Dynatrace para verificar cualquier número.",
+    glossary: [
+      {
+        term: "Clúster",
+        meaning:
+          "El conjunto de máquinas donde corren las aplicaciones. Puede haber varios (por ejemplo uno de producción y otro de no-producción).",
+      },
+      {
+        term: "Nodo",
+        meaning:
+          "Una de esas máquinas (un servidor). El clúster reparte las aplicaciones entre sus nodos.",
+      },
+      {
+        term: "Pod",
+        meaning:
+          "Una copia en ejecución de una aplicación. Si una aplicación tiene 3 copias para aguantar la carga, son 3 pods.",
+      },
+      {
+        term: "Workload",
+        meaning:
+          "La aplicación como tal, con todas sus copias. Es lo que un squad reconoce como 'su servicio'.",
+      },
+      {
+        term: "Namespace",
+        meaning:
+          "Una carpeta dentro del clúster que agrupa aplicaciones relacionadas y las mantiene separadas de las demás.",
+      },
+      {
+        term: "Request (reserva)",
+        meaning:
+          "La cantidad de CPU y memoria que la aplicación pide reservada para sí. Se paga se use o no: es la base del cálculo de desperdicio.",
+      },
+      {
+        term: "Limit (tope)",
+        meaning:
+          "El máximo de CPU y memoria que la aplicación puede llegar a usar. Si lo toca, el sistema la frena o la reinicia.",
+      },
+      {
+        term: "Throttling (frenado)",
+        meaning:
+          "Cuando una aplicación pide más CPU de la que su tope permite, el sistema la ralentiza a propósito. Se siente como lentitud para el usuario final.",
+      },
+      {
+        term: "OOM kill",
+        meaning:
+          "El sistema mata la aplicación porque se quedó sin memoria. Se cae y vuelve a arrancar, perdiendo lo que estaba haciendo.",
+      },
+      {
+        term: "Probe (chequeo de salud)",
+        meaning:
+          "Una revisión automática que pregunta '¿sigues viva?' y '¿ya puedes atender?'. Sin ella, el sistema manda tráfico a copias que no responden.",
+      },
+      {
+        term: "Réplica",
+        meaning:
+          "Cada copia de la aplicación. Con una sola, cualquier falla la deja fuera de servicio; con varias, las otras siguen atendiendo.",
+      },
+      {
+        term: "HPA (autoescalado)",
+        meaning:
+          "El mecanismo que agrega o quita copias solo, según la carga. Si llega a su máximo, ya no puede crecer más aunque haga falta.",
+      },
+      {
+        term: "Tier",
+        meaning:
+          "Qué tan crítica es la aplicación para el negocio, según el catálogo de propiedad. Tier 1 es lo más crítico.",
+      },
+      {
+        term: "Squad / Tribu",
+        meaning:
+          "El equipo dueño de la aplicación y el área a la que pertenece. Sirve para saber a quién le toca actuar.",
+      },
+      {
+        term: "Grail / DQL",
+        meaning:
+          "Grail es la base de datos de Dynatrace donde se guarda todo lo observado, y DQL el lenguaje con el que se le pregunta. Cada número de esta app sale de una consulta DQL en vivo.",
+      },
+    ],
+    filters: {
+      cluster: "Cluster",
+      clusterAll: "Cluster: todos",
+      namespace: "Namespace",
+      namespaceAll: "Namespace: todos",
+      tier: "Tier",
+      tierAll: "Tier: todos",
+      tribu: "Tribu",
+      tribuAll: "Tribu: todas",
+      squad: "Squad",
+      squadAll: "Squad: todos",
+      extraAll: (label: string) => `${label}: todos`,
+    },
+  },
+  chart: {
+    groupBy: "Agrupar por",
+    loading: "Cargando gráfica",
+    loadingTrend: "Cargando tendencia de nodos",
+    noData: "(sin dato)",
+    noCluster: "(sin clúster)",
+    noNode: "(sin nodo)",
+    noTier: "(sin tier)",
+    dqlError: "Error DQL:",
+    dimension: {
+      tier: "Tier",
+      squad: "Squad",
+      tribu: "Tribu",
+      rango_mem: "Rango de memoria reservada",
+      uso_vs_reserva: "Uso vs. reserva",
+    },
+    by: (noun: string, dimension: string) => `${noun} por ${dimension.toLowerCase()}`,
+    nouns: {
+      verdicts: "Veredictos",
+      criticality: "Criticidad",
+      elasticity: "Elasticidad",
+      severity: "Severidad",
+      orphans: "Huérfanos",
+      signals: "Señales",
+      problems: "Problemas",
+      risk: "Riesgo",
+    },
+    axis: {
+      workloads: "Workloads",
+      pods: "Pods",
+      hpas: "HPAs",
+      containers: "Contenedores",
+      nodes: "Nodos",
+      node: "Nodo",
+      cluster: "Clúster",
+      hostUsage: "% uso host",
+      repos: "Repos",
+      tier: "Tier",
+    },
+    nodesByAction: "Nodos por acción y clúster",
+    noSaturation: "Ningún nodo supera el 80% de CPU o memoria del host.",
+    saturationTitle: "Saturación de nodos (host CPU/MEM > 80%)",
+    nodeHealthTitle: "Salud de nodos por clúster",
+    reposByTier: "Repositorios por tier",
+    activeNodesPerDay: "Nodos activos por día (30 días)",
+    spendGrowing: "¿el gasto está creciendo?",
   },
 };

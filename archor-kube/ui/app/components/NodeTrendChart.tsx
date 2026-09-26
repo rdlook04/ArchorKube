@@ -7,6 +7,7 @@ import { TimeseriesChart, convertToTimeseries } from "@dynatrace/strato-componen
 import { useDql } from "@dynatrace-sdk/react-hooks";
 
 import { NODE_TREND_QUERY } from "../queries/spend";
+import { useT } from "../i18n";
 
 /**
  * Evolución diaria del número de nodos por clúster en los últimos 30 días.
@@ -15,15 +16,17 @@ import { NODE_TREND_QUERY } from "../queries/spend";
  * en la línea es una máquina que se factura mientras exista.
  */
 export const NodeTrendChart = () => {
+  const { t } = useT();
+  const c = t.chart;
   const { data, error, isLoading } = useDql({ query: NODE_TREND_QUERY });
 
   return (
     <Flex flexDirection="column" gap={8}>
-      <Heading level={5}>Nodos activos por día (30 días)</Heading>
-      {isLoading && <ProgressCircle aria-label="Cargando tendencia de nodos" />}
+      <Heading level={5}>{c.activeNodesPerDay}</Heading>
+      {isLoading && <ProgressCircle aria-label={c.loadingTrend} />}
       {error && (
         <Paragraph>
-          <Strong>Error DQL:</Strong> {error.message}
+          <Strong>{c.dqlError}</Strong> {error.message}
         </Paragraph>
       )}
       {data?.records && (

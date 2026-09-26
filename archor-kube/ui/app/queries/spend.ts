@@ -24,10 +24,10 @@ import { HOURS_PER_MONTH, instancePriceClause } from "./costModel";
  */
 
 /** Ventana común de los tres reportes del módulo. */
-const SPEND_WINDOW = rangeWindow(
-  24 * 30,
-  "Últimos 30 días de actividad de los nodos, en intervalos de un día. `dias_activo` cuenta los días con datos dentro de esa ventana: un nodo que aparezca con 30 llevaba activo todo el periodo o más, pero la ventana no permite saber cuánto más.",
-);
+const SPEND_WINDOW = rangeWindow(24 * 30, {
+  en: "The last 30 days of node activity, in one-day intervals. `dias_activo` counts the days with data inside that window: a node showing 30 was active the whole period or longer, but the window can't tell how much longer.",
+  es: "Últimos 30 días de actividad de los nodos, en intervalos de un día. `dias_activo` cuenta los días con datos dentro de esa ventana: un nodo que aparezca con 30 llevaba activo todo el periodo o más, pero la ventana no permite saber cuánto más.",
+});
 
 /** Enriquece cada nodo con su tipo de instancia (la etiqueta del nodo). */
 const instanceTypeJoin = `| lookup [
@@ -71,9 +71,9 @@ ${instancePriceClause()}`;
 export const spendByInstanceType: QueryDef = {
   id: "spend.by-instance-type",
   module: "spend",
-  title: "Nodos por clúster y tipo de instancia",
+  title: { en: "Nodes by cluster and instance type", es: "Nodos por clúster y tipo de instancia" },
   description:
-    "Inventario de máquinas: cuántas hay de cada tipo y cuántos días estuvieron activas",
+    { en: "Machine inventory: how many of each type and how many days they were active", es: "Inventario de máquinas: cuántas hay de cada tipo y cuántos días estuvieron activas" },
   window: SPEND_WINDOW,
   build: () => `${nodesSeen}
 | fieldsAdd gasto_nodo_30d = dias_activo * 24 * precio_hora
@@ -95,8 +95,8 @@ export const spendByInstanceType: QueryDef = {
 export const nodeInventory: QueryDef = {
   id: "spend.node-inventory",
   module: "spend",
-  title: "Detalle de nodos vistos en los últimos 30 días",
-  description: "Cada nodo con su tipo de instancia, días activo y antigüedad",
+  title: { en: "Nodes seen in the last 30 days", es: "Detalle de nodos vistos en los últimos 30 días" },
+  description: { en: "Each node with its instance type, days active and age", es: "Cada nodo con su tipo de instancia, días activo y antigüedad" },
   window: SPEND_WINDOW,
   build: () => `${nodesSeen}
 | fieldsAdd prioridad = if(antiguedad == "NUEVO", 1,

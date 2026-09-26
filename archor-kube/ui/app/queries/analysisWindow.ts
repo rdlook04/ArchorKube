@@ -1,3 +1,5 @@
+import type { Lang, Localized } from "../i18n";
+
 /**
  * Ventana de datos que analiza cada módulo.
  *
@@ -11,57 +13,67 @@ export type AnalysisWindowKind = "range" | "snapshot" | "catalog";
 
 export interface AnalysisWindow {
   kind: AnalysisWindowKind;
-  /** Etiqueta corta del badge, ej. "Últimas 24 h". */
-  label: string;
   /** Frase explicativa para el panel "Acerca de este módulo". */
-  detail: string;
+  detail: Localized;
   /** Horas del rango móvil (solo para `range`); permite resolver el reloj. */
   hours?: number;
 }
 
-const rangeLabel = (hours: number): string => {
-  if (hours < 24) return `Últimas ${hours} h`;
+/** Etiqueta corta del badge ("Last 24 h" / "Últimas 24 h"), según el idioma. */
+export const windowLabel = (window: AnalysisWindow, lang: Lang): string => {
+  const es = lang === "es";
+  if (window.kind === "snapshot") return es ? "Estado actual" : "Current state";
+  if (window.kind === "catalog") return es ? "Catálogo" : "Catalog";
+  const hours = window.hours ?? 0;
   const days = hours / 24;
-  if (days === 1) return "Últimas 24 h";
-  return Number.isInteger(days) ? `Últimos ${days} días` : `Últimas ${hours} h`;
+  if (hours >= 24 && Number.isInteger(days) && days > 1) {
+    return es ? `Últimos ${days} días` : `Last ${days} days`;
+  }
+  return es ? `Últimas ${hours} h` : `Last ${hours} h`;
 };
 
 /** Rango móvil sobre datos temporales (métricas, logs, eventos). */
-export const rangeWindow = (hours: number, detail: string): AnalysisWindow => ({
+export const rangeWindow = (hours: number, detail: Localized): AnalysisWindow => ({
   kind: "range",
   hours,
-  label: rangeLabel(hours),
   detail,
 });
 
 /** Foto del estado actual (smartscape): no hay histórico, es lo que existe ahora. */
-export const snapshotWindow = (detail: string): AnalysisWindow => ({
+export const snapshotWindow = (detail: Localized): AnalysisWindow => ({
   kind: "snapshot",
-  label: "Estado actual",
   detail,
 });
 
 /** Catálogo o lookup sin dimensión temporal. */
-export const catalogWindow = (detail: string): AnalysisWindow => ({
+export const catalogWindow = (detail: Localized): AnalysisWindow => ({
   kind: "catalog",
-  label: "Catálogo",
   detail,
 });
 
-const clockFormat = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
+const clockFormats: Record<Lang, Intl.DateTimeFormat> = {
+  en: new Intl.DateTimeFormat("en", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }),
+  es: new Intl.DateTimeFormat("es", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }),
+};
 
-/** Hora de reloj de una fecha, ej. "18 ago, 14:20". */
-export const formatClock = (at: Date): string => clockFormat.format(at);
+/** Hora de reloj de una fecha, ej. "18 ago, 14:20" o "Aug 18, 14:20". */
+export const formatClock = (at: Date, lang: Lang): string => clockFormats[lang].format(at);
 
 /**
  * Resuelve el rango a horas de reloj concretas ("17 ago, 14:20 → 18 ago, 14:20"):
  * es la respuesta directa a "¿qué horas está mirando este módulo?".
  */
-export const formatClockRange = (hours: number, until: Date): string =>
-  `${formatClock(new Date(until.getTime() - hours * 3600_000))} → ${formatClock(until)}`;
+export const formatClockRange = (hours: number, until: Date, lang: Lang): string =>
+  `${formatClock(new Date(until.getTime() - hours * 3600_000), lang)} → ${formatClock(until, lang)}`;

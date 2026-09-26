@@ -18,11 +18,11 @@ import { rangeWindow } from "./analysisWindow";
 export const criticalErrors: QueryDef = {
   id: "errors.critical",
   module: "critical-errors",
-  title: "Errores en logs por contenedor (24h)",
+  title: { en: "Log errors by container (24h)", es: "Errores en logs por contenedor (24h)" },
   description:
-    "Contenedores con más errores y críticos en logs, con tier y squad",
+    { en: "Containers with the most errors and criticals in their logs, with tier and squad", es: "Contenedores con más errores y críticos en logs, con tier y squad" },
   window: rangeWindow(24,
-    "Logs con nivel ERROR o superior de las últimas 24 horas.",
+    { en: "Logs at ERROR level or above over the last 24 hours.", es: "Logs con nivel ERROR o superior de las últimas 24 horas." },
   ),
   build: (params?: QueryParams) => `fetch logs, from: now()-24h
 | filter in(loglevel, {"ERROR", "CRITICAL", "EMERGENCY", "SEVERE", "FATAL"})
@@ -60,10 +60,10 @@ export const errorSeverityBreakdown = (
 export const criticalErrorsSummary: QueryDef = {
   id: "errors.summary",
   module: "critical-errors",
-  title: "Resumen por tier",
-  description: "Total de errores y críticos (24h) agregados por tier",
+  title: { en: "Summary by tier", es: "Resumen por tier" },
+  description: { en: "Total errors and criticals (24h) by tier", es: "Total de errores y críticos (24h) agregados por tier" },
   window: rangeWindow(24,
-    "Logs con nivel ERROR o superior de las últimas 24 horas.",
+    { en: "Logs at ERROR level or above over the last 24 hours.", es: "Logs con nivel ERROR o superior de las últimas 24 horas." },
   ),
   build: (params?: QueryParams) =>
     `${criticalErrors.build(params)}\n| summarize contenedores = count(), errores_total = sum(errores), criticos_total = sum(criticos), by:{tier}\n| sort criticos_total desc`,

@@ -113,11 +113,11 @@ ${tierLookupJoin("k8s.workload.name")}${tierFilterClause(params)}`;
 export const complianceReport: QueryDef = {
   id: "compliance.report",
   module: "compliance",
-  title: "Cumplimiento del estándar AKS por workload (8 SPECs)",
+  title: { en: "AKS standard compliance by workload (8 SPECs)", es: "Cumplimiento del estándar AKS por workload (8 SPECs)" },
   description:
-    "Evalúa CPU/Mem limits+requests, liveness/readiness probes y non-root por workload",
+    { en: "Checks CPU/memory limits and requests, liveness/readiness probes and non-root per workload", es: "Evalúa CPU/Mem limits+requests, liveness/readiness probes y non-root por workload" },
   window: snapshotWindow(
-    "Foto del estado actual de la topología (smartscape): las 8 SPECs se evalúan sobre el manifiesto vigente de cada workload.",
+    { en: "Snapshot of the current topology (smartscape): the 8 SPECs are checked against each workload's current manifest.", es: "Foto del estado actual de la topología (smartscape): las 8 SPECs se evalúan sobre el manifiesto vigente de cada workload." },
   ),
   build: (params?: QueryParams) => `${complianceByWorkload(params)}
 ${deploymentIdJoin("`k8s.workload.name`")}
@@ -151,10 +151,10 @@ export const complianceBreakdown = (
 export const complianceSummary: QueryDef = {
   id: "compliance.summary",
   module: "compliance",
-  title: "Cumplimiento por especificación (dashboard general)",
-  description: "Workloads que cumplen/incumplen cada una de las 8 SPECs del estándar AKS",
+  title: { en: "Compliance by spec (overview)", es: "Cumplimiento por especificación (dashboard general)" },
+  description: { en: "Workloads that meet or miss each of the 8 SPECs of the AKS standard", es: "Workloads que cumplen/incumplen cada una de las 8 SPECs del estándar AKS" },
   window: snapshotWindow(
-    "Foto del estado actual de la topología (smartscape), sin histórico.",
+    { en: "Snapshot of the current topology (smartscape), no history.", es: "Foto del estado actual de la topología (smartscape), sin histórico." },
   ),
   build: (params?: QueryParams) => `${complianceByWorkload(params)}
 | summarize

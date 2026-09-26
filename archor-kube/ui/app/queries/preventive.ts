@@ -22,11 +22,11 @@ import { excludedNamespacesClause } from "./namespaces";
 export const preventiveSignals: QueryDef = {
   id: "preventive.signals",
   module: "preventive",
-  title: "Señales preventivas — restarts y OOM kills (24h)",
+  title: { en: "Early signals — restarts and OOM kills (24h)", es: "Señales preventivas — restarts y OOM kills (24h)" },
   description:
-    "Workloads con restart loops u OOM kills: degradación antes del incidente",
+    { en: "Workloads with restart loops or OOM kills: degradation before the incident", es: "Workloads con restart loops u OOM kills: degradación antes del incidente" },
   window: rangeWindow(24,
-    "OOM kills y reinicios contados sobre las últimas 24 horas.",
+    { en: "OOM kills and restarts counted over the last 24 hours.", es: "OOM kills y reinicios contados sobre las últimas 24 horas." },
   ),
   build: (params?: QueryParams) => `timeseries {
   restarts  = sum(dt.kubernetes.container.restarts),
@@ -75,10 +75,10 @@ export const preventiveBreakdown = (
 export const preventiveSummary: QueryDef = {
   id: "preventive.summary",
   module: "preventive",
-  title: "Resumen por señal y tier",
-  description: "Cantidad de workloads con señales preventivas por tier",
+  title: { en: "Summary by signal and tier", es: "Resumen por señal y tier" },
+  description: { en: "Workloads with early signals by tier", es: "Cantidad de workloads con señales preventivas por tier" },
   window: rangeWindow(24,
-    "OOM kills y reinicios contados sobre las últimas 24 horas.",
+    { en: "OOM kills and restarts counted over the last 24 hours.", es: "OOM kills y reinicios contados sobre las últimas 24 horas." },
   ),
   build: (params?: QueryParams) =>
     `${preventiveSignals.build(params)}\n| summarize workloads = count(), by:{prioridad, senal, tier}\n| sort prioridad asc, tier asc\n| fields senal, tier, workloads`,

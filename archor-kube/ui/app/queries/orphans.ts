@@ -16,11 +16,11 @@ import { excludedNamespacesClause } from "./namespaces";
 export const orphanWorkloads: QueryDef = {
   id: "orphans.workloads",
   module: "orphans",
-  title: "Workloads huérfanos — sin réplicas o sin dueño",
+  title: { en: "Orphan workloads — no replicas or no owner", es: "Workloads huérfanos — sin réplicas o sin dueño" },
   description:
-    "Deployments/StatefulSets con 0 réplicas o sin dueño en el catálogo de propiedad",
+    { en: "Deployments/StatefulSets with 0 replicas or no owner in the ownership catalog", es: "Deployments/StatefulSets con 0 réplicas o sin dueño en el catálogo de propiedad" },
   window: snapshotWindow(
-    "Foto del estado actual de la topología (smartscape): los workloads tal como están definidos ahora mismo, sin histórico.",
+    { en: "Snapshot of the current topology (smartscape): workloads as they are defined right now, no history.", es: "Foto del estado actual de la topología (smartscape): los workloads tal como están definidos ahora mismo, sin histórico." },
   ),
   build: (params?: QueryParams) => `smartscapeNodes K8S_DEPLOYMENT, K8S_STATEFULSET
 | parse k8s.object, "JSON:config"
@@ -58,10 +58,10 @@ export const orphanBreakdown = (
 export const orphanSummary: QueryDef = {
   id: "orphans.summary",
   module: "orphans",
-  title: "Resumen por motivo",
-  description: "Cantidad de workloads huérfanos por motivo y clúster",
+  title: { en: "Summary by reason", es: "Resumen por motivo" },
+  description: { en: "Orphan workloads by reason and cluster", es: "Cantidad de workloads huérfanos por motivo y clúster" },
   window: snapshotWindow(
-    "Foto del estado actual de la topología (smartscape), sin histórico.",
+    { en: "Snapshot of the current topology (smartscape), no history.", es: "Foto del estado actual de la topología (smartscape), sin histórico." },
   ),
   build: (params?: QueryParams) =>
     `${orphanWorkloads.build(params)}\n| summarize workloads = count(), by:{prioridad, motivo, tier}\n| sort prioridad asc, tier asc\n| fields motivo, tier, workloads`,

@@ -11,18 +11,13 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 
 import { type BreakdownDimension, riskBreakdown } from "../queries/risk";
 import type { TierFilterValue } from "./TierFilters";
+import { useT } from "../i18n";
 
 /** Colores semánticos por nivel de riesgo. */
 const LEVEL_COLORS: Record<string, string> = {
   CRITICO: Colors.Background.Container.Critical.Accent,
   ALTO: Colors.Background.Container.Warning.Accent,
   MEDIO: Colors.Background.Container.Neutral.Accent,
-};
-
-const DIMENSION_LABEL: Record<BreakdownDimension, string> = {
-  tier: "Tier",
-  squad: "Squad",
-  tribu: "Tribu",
 };
 
 interface BreakdownRecord {
@@ -37,6 +32,8 @@ interface BreakdownRecord {
  * segmento, un nivel con su color semántico.
  */
 export const RiskLevelChart = ({ filters }: { filters: TierFilterValue }) => {
+  const { t } = useT();
+  const c = t.chart;
   const [dimension, setDimension] = useState<BreakdownDimension>("tier");
   const { data, error, isLoading } = useDql({ query: riskBreakdown(dimension, filters) });
 
@@ -44,7 +41,7 @@ export const RiskLevelChart = ({ filters }: { filters: TierFilterValue }) => {
     const records = (data?.records ?? []) as BreakdownRecord[];
     const byCategory = new Map<string, Record<string, number>>();
     for (const r of records) {
-      const category = r.category ?? "(sin dato)";
+      const category = r.category ?? c.noData;
       const nivel = r.nivel ?? "?";
       const workloads = Number(r.workloads ?? 0);
       const bucket = byCategory.get(category) ?? {};
@@ -52,27 +49,27 @@ export const RiskLevelChart = ({ filters }: { filters: TierFilterValue }) => {
       byCategory.set(category, bucket);
     }
     return [...byCategory.entries()].map(([category, value]) => ({ category, value }));
-  }, [data?.records]);
+  }, [data?.records, c.noData]);
 
   return (
     <Flex flexDirection="column" gap={8}>
       <Flex justifyContent="space-between" alignItems="center" gap={8}>
-        <Heading level={4}>Riesgo por {DIMENSION_LABEL[dimension].toLowerCase()}</Heading>
+        <Heading level={4}>{c.by(c.nouns.risk, c.dimension[dimension])}</Heading>
         <Select
-          aria-label="Agrupar por"
+          aria-label={c.groupBy}
           value={dimension}
           onChange={(value) => value && setDimension(value)}
         >
           <Select.Trigger />
           <Select.Content>
-            <Select.Option value="tier">Tier</Select.Option>
-            <Select.Option value="squad">Squad</Select.Option>
-            <Select.Option value="tribu">Tribu</Select.Option>
+            <Select.Option value="tier">{c.dimension.tier}</Select.Option>
+            <Select.Option value="squad">{c.dimension.squad}</Select.Option>
+            <Select.Option value="tribu">{c.dimension.tribu}</Select.Option>
           </Select.Content>
         </Select>
       </Flex>
-      {isLoading && <ProgressCircle aria-label="Cargando gráfica" />}
-      {error && <Paragraph>Error DQL: {error.message}</Paragraph>}
+      {isLoading && <ProgressCircle aria-label={c.loading} />}
+      {error && <Paragraph>{c.dqlError} {error.message}</Paragraph>}
       {!isLoading && !error && (
         <CategoricalBarChart
           data={chartData}
@@ -81,8 +78,8 @@ export const RiskLevelChart = ({ filters }: { filters: TierFilterValue }) => {
           colorPalette={LEVEL_COLORS}
           height={340}
         >
-          <CategoricalBarChart.CategoryAxis label={DIMENSION_LABEL[dimension]} />
-          <CategoricalBarChart.ValueAxis label="Workloads" />
+          <CategoricalBarChart.CategoryAxis label={c.dimension[dimension]} />
+          <CategoricalBarChart.ValueAxis label={c.axis.workloads} />
           <CategoricalBarChart.Legend position="bottom" />
         </CategoricalBarChart>
       )}

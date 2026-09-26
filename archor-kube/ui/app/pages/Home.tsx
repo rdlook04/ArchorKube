@@ -29,6 +29,8 @@ import {
 import { useDql } from "@dynatrace-sdk/react-hooks";
 
 import { USD_GB_MONTH, USD_VCPU_MONTH } from "../queries/costModel";
+import { useT } from "../i18n";
+import { windowLabel } from "../queries/analysisWindow";
 import {
   HOME_COUNT_QUERIES,
   HOME_WINDOWS,
@@ -265,6 +267,7 @@ const ModuleCard = ({ item, accent, onResult }: ModuleCardProps) => {
 
   const severity = severityOf(item, metric);
   const analysisWindow = HOME_WINDOWS[item.to];
+  const { lang } = useT();
 
   return (
     <RouterLink
@@ -336,7 +339,7 @@ const ModuleCard = ({ item, accent, onResult }: ModuleCardProps) => {
           <Flex alignItems="center" gap={6}>
             <ClockIcon size={12} style={{ color: Colors.Text.Neutral.Subdued, flexShrink: 0 }} />
             <Text style={{ color: Colors.Text.Neutral.Subdued, fontSize: 12 }}>
-              {analysisWindow.label}
+              {windowLabel(analysisWindow, lang)}
             </Text>
           </Flex>
         )}

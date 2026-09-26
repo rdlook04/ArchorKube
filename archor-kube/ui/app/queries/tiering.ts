@@ -31,14 +31,17 @@ ${tierLookupJoin("repo")}
 /** Base del inventario, según sepa el proveedor listar un catálogo o no. */
 const INVENTORY = ownership.catalog ?? WORKLOAD_INVENTORY;
 
-const SOURCE_NOTE = `${ownership.about} Sin dimensión temporal: refleja el inventario tal como está en este momento.`;
+const SOURCE_NOTE = {
+  en: `${ownership.about} No time dimension: it reflects the inventory as it is right now.`,
+  es: `${ownership.about} Sin dimensión temporal: refleja el inventario tal como está en este momento.`,
+};
 
 export const tierByRepo: QueryDef = {
   id: "tiering.by-repo",
   module: "tiering",
-  title: "Tier por repositorio/servicio",
+  title: { en: "Tier by repository/service", es: "Tier por repositorio/servicio" },
   description:
-    "Cada servicio con su squad, tier y dominio; el nombre se une luego con el contenedor K8s",
+    { en: "Each service with its squad, tier and domain; the name is later joined with the K8s container", es: "Cada servicio con su squad, tier y dominio; el nombre se une luego con el contenedor K8s" },
   // El inventario puede pasar de 8k filas; sin limit explícito DQL corta en 1000.
   window: catalogWindow(SOURCE_NOTE),
   build: () => `${INVENTORY}\n| sort tier asc, squad asc, repo asc`,
@@ -47,8 +50,8 @@ export const tierByRepo: QueryDef = {
 export const tierSummary: QueryDef = {
   id: "tiering.summary",
   module: "tiering",
-  title: "Resumen por tier y squad",
-  description: "Cantidad de servicios por tier y squad para priorización",
+  title: { en: "Summary by tier and squad", es: "Resumen por tier y squad" },
+  description: { en: "Services by tier and squad, for prioritization", es: "Cantidad de servicios por tier y squad para priorización" },
   window: catalogWindow(SOURCE_NOTE),
   build: () =>
     `${INVENTORY}\n| summarize repos = count(), by:{tier, squad}\n| sort tier asc, repos desc`,
@@ -58,8 +61,8 @@ export const tierSummary: QueryDef = {
 export const tierDistribution: QueryDef = {
   id: "tiering.distribution",
   module: "tiering",
-  title: "Distribución de servicios por tier",
-  description: "Cantidad de servicios del catálogo por tier",
+  title: { en: "Services by tier", es: "Distribución de servicios por tier" },
+  description: { en: "Catalog services by tier", es: "Cantidad de servicios del catálogo por tier" },
   window: catalogWindow(SOURCE_NOTE),
   build: () =>
     `${INVENTORY}\n| summarize repos = count(), by:{ category = coalesce(tier, "(sin tier)") }\n| sort category asc`,
@@ -69,8 +72,8 @@ export const tierDistribution: QueryDef = {
 export const tierLookup: QueryDef = {
   id: "tiering.lookup",
   module: "tiering",
-  title: "Inventario de propiedad (crudo)",
+  title: { en: "Ownership inventory (raw)", es: "Inventario de propiedad (crudo)" },
   description:
-    "Salida sin procesar de la fuente de propiedad, para verificar que el proveedor resuelve bien",
+    { en: "Raw output of the ownership source, to check the provider resolves correctly", es: "Salida sin procesar de la fuente de propiedad, para verificar que el proveedor resuelve bien" },
   build: () => INVENTORY,
 };

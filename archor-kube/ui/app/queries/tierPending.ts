@@ -34,7 +34,7 @@ ${tierLookupJoin("k8s.workload.name")}
 | fieldsAdd prioridad = if(isNotNull(squad), 1, else: 2)`;
 
 const WINDOW = snapshotWindow(
-  "Foto del estado actual: los workloads definidos ahora mismo y la propiedad tal como está declarada hoy en el catálogo y en las labels.",
+  { en: "Snapshot of the current state: the workloads defined right now and ownership as it's declared today in the catalog and labels.", es: "Foto del estado actual: los workloads definidos ahora mismo y la propiedad tal como está declarada hoy en el catálogo y en las labels." },
 );
 
 /**
@@ -46,9 +46,9 @@ const WINDOW = snapshotWindow(
 export const tierPendingBySquad: QueryDef = {
   id: "tier-pending.by-squad",
   module: "tiering",
-  title: "Pendientes de tier por squad",
+  title: { en: "Pending tiers by squad", es: "Pendientes de tier por squad" },
   description:
-    "Cuántos workloads sin tier le corresponden a cada squad, para repartir el trabajo",
+    { en: "How many untiered workloads belong to each squad, to split the work", es: "Cuántos workloads sin tier le corresponden a cada squad, para repartir el trabajo" },
   window: WINDOW,
   build: (params?: QueryParams) => `${PENDING_BASE(params)}
 | summarize pendientes = count(),
@@ -61,9 +61,9 @@ export const tierPendingBySquad: QueryDef = {
 export const tierPendingWorkloads: QueryDef = {
   id: "tier-pending.workloads",
   module: "tiering",
-  title: "Workloads sin tier",
+  title: { en: "Workloads without a tier", es: "Workloads sin tier" },
   description:
-    "Cada workload que corre sin tier declarado, con el squad al que hay que reclamárselo",
+    { en: "Every workload running without a declared tier, with the squad to ask", es: "Cada workload que corre sin tier declarado, con el squad al que hay que reclamárselo" },
   window: WINDOW,
   build: (params?: QueryParams) => `${PENDING_BASE(params)}
 | sort prioridad asc, k8s.namespace.name asc, k8s.workload.name asc
@@ -83,8 +83,11 @@ export const tierPendingBreakdown = (
 ): QueryDef => ({
   id: `tier-pending.breakdown.${dimension}`,
   module: "tiering",
-  title: `Pendientes de tier por ${dimension}`,
-  description: "Distribución de los pendientes por motivo",
+  title: {
+    en: `Pending tiers by ${dimension === "squad" ? "squad" : "tribe"}`,
+    es: `Pendientes de tier por ${dimension}`,
+  },
+  description: { en: "Pending workloads by reason", es: "Distribución de los pendientes por motivo" },
   window: WINDOW,
   build: (params?: QueryParams) => `${PENDING_BASE(params)}
 | summarize workloads = count(),

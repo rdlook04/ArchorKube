@@ -18,11 +18,11 @@ import { rangeWindow } from "./analysisWindow";
 export const rightsizingReport: QueryDef = {
   id: "rightsizing.report",
   module: "rightsizing-cpu",
-  title: "Rightsizing — capacidad ociosa y CPU throttling",
+  title: { en: "Rightsizing — idle capacity and CPU throttling", es: "Rightsizing — capacidad ociosa y CPU throttling" },
   description:
-    "Pods con sobreaprovisionamiento, requests subdimensionados o throttling crítico",
+    { en: "Pods that are over-provisioned, under-requested or critically throttled", es: "Pods con sobreaprovisionamiento, requests subdimensionados o throttling crítico" },
   window: rangeWindow(2,
-    "Promedios de CPU y memoria de las últimas 2 horas (timeframe por defecto de Grail para `timeseries`). Es una ventana corta: un pico o un valle puntual puede distorsionar la recomendación, así que conviene contrastarla antes de recortar requests.",
+    { en: "CPU and memory averages over the last 2 hours (Grail's default timeframe for `timeseries`). It's a short window: a one-off peak or dip can skew the recommendation, so check it before cutting requests.", es: "Promedios de CPU y memoria de las últimas 2 horas (timeframe por defecto de Grail para `timeseries`). Es una ventana corta: un pico o un valle puntual puede distorsionar la recomendación, así que conviene contrastarla antes de recortar requests." },
   ),
   build: (params?: QueryParams) => `timeseries {
   cpu_usage     = avg(dt.kubernetes.container.cpu_usage),
@@ -136,10 +136,10 @@ export const rightsizingBreakdown = (
 export const rightsizingSummary: QueryDef = {
   id: "rightsizing.summary",
   module: "rightsizing-cpu",
-  title: "Resumen por problema y tier",
-  description: "Cantidad de pods con hallazgo y slack valorizado, por problema y tier",
+  title: { en: "Summary by problem and tier", es: "Resumen por problema y tier" },
+  description: { en: "Pods with findings and valued slack, by problem and tier", es: "Cantidad de pods con hallazgo y slack valorizado, por problema y tier" },
   window: rangeWindow(2,
-    "Promedios de CPU y memoria de las últimas 2 horas (timeframe por defecto de Grail para `timeseries`).",
+    { en: "CPU and memory averages over the last 2 hours (Grail's default timeframe for `timeseries`).", es: "Promedios de CPU y memoria de las últimas 2 horas (timeframe por defecto de Grail para `timeseries`)." },
   ),
   build: (params?: QueryParams) =>
     `${rightsizingReport.build(params)}\n| summarize pods = count(), slack_mes_usd = round(sum(perdida_mes_usd), decimals:0), by:{prioridad, problema, tier}\n| sort prioridad asc, tier asc\n| fields problema, tier, pods, slack_mes_usd`,

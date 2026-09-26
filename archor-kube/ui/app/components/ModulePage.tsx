@@ -13,6 +13,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 import type { QueryDef } from "../queries";
 import { AnalysisWindowBadge } from "./AnalysisWindowBadge";
 import { ModuleAbout, type SimpleExplanation } from "./ModuleAbout";
+import { useT } from "../i18n";
 import { TierFilters, type TierFilterValue } from "./TierFilters";
 
 /** Accessor para campos DQL con punto en el nombre (evita rutas anidadas). */
@@ -144,6 +145,7 @@ export const ModulePage = ({
   rowActions,
   summaryAside,
 }: ModulePageProps) => {
+  const { t, L } = useT();
   const [filters, setFilters] = useState<TierFilterValue>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
   // Momento de la última ejecución, para resolver el rango del badge a horas de reloj.
@@ -181,15 +183,15 @@ export const ModulePage = ({
           {analysisWindow && (
             <AnalysisWindowBadge window={analysisWindow} queriedAt={queriedAt} />
           )}
-          <Button onClick={() => setDetailsOpen((open) => !open)}>Detalles</Button>
+          <Button onClick={() => setDetailsOpen((open) => !open)}>{t.module.details}</Button>
         </Flex>
       </Flex>
       {/* La explicación del módulo vive en un overlay: no re-dimensiona la tabla. */}
       <Sheet
         show={detailsOpen}
-        title="Acerca de este módulo"
+        title={t.module.aboutTitle}
         onDismiss={() => setDetailsOpen(false)}
-        actions={<Button onClick={() => setDetailsOpen(false)}>Cerrar</Button>}
+        actions={<Button onClick={() => setDetailsOpen(false)}>{t.module.close}</Button>}
       >
         <Flex flexDirection="column" gap={12} padding={16}>
           <ModuleAbout
@@ -197,8 +199,8 @@ export const ModulePage = ({
             about={about ?? buildAboutMarkdown(intro, executive)}
             window={analysisWindow}
             queries={[
-              { title: summaryQuery.title, dql: summaryQuery.build(filters) },
-              { title: detailQuery.title, dql: detailQuery.build(filters) },
+              { title: L(summaryQuery.title), dql: summaryQuery.build(filters) },
+              { title: L(detailQuery.title), dql: detailQuery.build(filters) },
             ]}
           />
         </Flex>
@@ -212,15 +214,15 @@ export const ModulePage = ({
             void detail.refetch();
           }}
         >
-          Actualizar
+          {t.module.refresh}
         </Button>
       </Flex>
 
-      <Heading level={4}>{summaryQuery.title}</Heading>
-      {summary.isLoading && <ProgressCircle aria-label="Cargando resumen" />}
+      <Heading level={4}>{L(summaryQuery.title)}</Heading>
+      {summary.isLoading && <ProgressCircle aria-label={t.module.loadingSummary} />}
       {summary.error && (
         <Paragraph>
-          <Strong>Error DQL:</Strong> {summary.error.message}
+          <Strong>{t.module.dqlError}</Strong> {summary.error.message}
         </Paragraph>
       )}
       {summary.data?.records && (
@@ -241,11 +243,11 @@ export const ModulePage = ({
         </Flex>
       )}
 
-      <Heading level={4}>{detailQuery.title}</Heading>
-      {detail.isLoading && <ProgressCircle aria-label="Cargando detalle" />}
+      <Heading level={4}>{L(detailQuery.title)}</Heading>
+      {detail.isLoading && <ProgressCircle aria-label={t.module.loadingDetail} />}
       {detail.error && (
         <Paragraph>
-          <Strong>Error DQL:</Strong> {detail.error.message}
+          <Strong>{t.module.dqlError}</Strong> {detail.error.message}
         </Paragraph>
       )}
       {detail.data?.records && (
@@ -256,7 +258,7 @@ export const ModulePage = ({
                 <FilterBar.Item key={facet.id} name={facet.id} label={facet.label}>
                   {/* FilterBar.Item inyecta value/onChange en el Select. */}
                   <Select clearable>
-                    <Select.Trigger placeholder="Todos" width="240px" />
+                    <Select.Trigger placeholder={t.module.all} width="240px" />
                     {/* Los veredictos son largos (SOBREAPROVISIONADO_CPU_MEM):
                         sin ancho propio el desplegable los recorta y quedan
                         opciones indistinguibles. */}
@@ -274,7 +276,7 @@ export const ModulePage = ({
           )}
           <Paragraph>
             <Strong>{filteredData.length}</Strong> {detailNoun}
-            {filteredData.length !== detailRecords.length && ` (de ${detailRecords.length})`}.
+            {filteredData.length !== detailRecords.length && t.module.ofTotal(detailRecords.length)}.
           </Paragraph>
           <DataTable
             data={filteredData}

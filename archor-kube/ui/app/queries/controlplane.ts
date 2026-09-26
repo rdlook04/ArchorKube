@@ -12,11 +12,11 @@ import { snapshotWindow } from "./analysisWindow";
 export const nodeConditions: QueryDef = {
   id: "controlplane.node-conditions",
   module: "control-plane",
-  title: "Condiciones problemáticas de nodos",
+  title: { en: "Problem node conditions", es: "Condiciones problemáticas de nodos" },
   description:
-    "Nodos NotReady o con presión de memoria/disco/PID u otras condiciones activas",
+    { en: "Nodes that are NotReady or under memory/disk/PID pressure or other active conditions", es: "Nodos NotReady o con presión de memoria/disco/PID u otras condiciones activas" },
   window: snapshotWindow(
-    "Foto del estado actual de los nodos (smartscape): las condiciones que reportan en este momento, sin histórico.",
+    { en: "Snapshot of the current nodes (smartscape): the conditions they report right now, no history.", es: "Foto del estado actual de los nodos (smartscape): las condiciones que reportan en este momento, sin histórico." },
   ),
   build: () => `smartscapeNodes K8S_NODE
 | parse k8s.object, "JSON:config"
@@ -36,10 +36,10 @@ export const nodeConditions: QueryDef = {
 export const nodeHealthSummary: QueryDef = {
   id: "controlplane.health",
   module: "control-plane",
-  title: "Salud de nodos por clúster",
-  description: "Total de nodos y nodos Ready por clúster",
+  title: { en: "Node health by cluster", es: "Salud de nodos por clúster" },
+  description: { en: "Total nodes and Ready nodes by cluster", es: "Total de nodos y nodos Ready por clúster" },
   window: snapshotWindow(
-    "Foto del estado actual de los nodos (smartscape), sin histórico.",
+    { en: "Snapshot of the current nodes (smartscape), no history.", es: "Foto del estado actual de los nodos (smartscape), sin histórico." },
   ),
   build: () => `smartscapeNodes K8S_NODE
 | parse k8s.object, "JSON:config"

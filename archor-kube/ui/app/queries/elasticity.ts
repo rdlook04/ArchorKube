@@ -19,11 +19,11 @@ import { snapshotWindow } from "./analysisWindow";
 export const hpaElasticity: QueryDef = {
   id: "elasticity.hpa",
   module: "availability-risk",
-  title: "Elasticidad HPA — réplicas y bloqueos",
+  title: { en: "HPA elasticity — replicas and blocks", es: "Elasticidad HPA — réplicas y bloqueos" },
   description:
-    "HPAs bloqueados (TooManyReplicas), sin margen (min=max) u OK, con tier y squad",
+    { en: "HPAs blocked (TooManyReplicas), without headroom (min=max) or OK, with tier and squad", es: "HPAs bloqueados (TooManyReplicas), sin margen (min=max) u OK, con tier y squad" },
   window: snapshotWindow(
-    "Foto del estado actual de los HorizontalPodAutoscalers (smartscape): min/max de réplicas y condiciones tal como están ahora, sin histórico.",
+    { en: "Snapshot of the current HorizontalPodAutoscalers (smartscape): min/max replicas and conditions as they are now, no history.", es: "Foto del estado actual de los HorizontalPodAutoscalers (smartscape): min/max de réplicas y condiciones tal como están ahora, sin histórico." },
   ),
   build: (params?: QueryParams) => `smartscapeNodes K8S_HORIZONTALPODAUTOSCALER
 | parse k8s.object, "JSON:config"
@@ -79,10 +79,10 @@ export const elasticityBreakdown = (
 export const hpaElasticitySummary: QueryDef = {
   id: "elasticity.summary",
   module: "availability-risk",
-  title: "Resumen por elasticidad y tier",
-  description: "Cantidad de HPAs por estado de elasticidad y tier",
+  title: { en: "Summary by elasticity and tier", es: "Resumen por elasticidad y tier" },
+  description: { en: "HPAs by elasticity status and tier", es: "Cantidad de HPAs por estado de elasticidad y tier" },
   window: snapshotWindow(
-    "Foto del estado actual de los HorizontalPodAutoscalers (smartscape), sin histórico.",
+    { en: "Snapshot of the current HorizontalPodAutoscalers (smartscape), no history.", es: "Foto del estado actual de los HorizontalPodAutoscalers (smartscape), sin histórico." },
   ),
   build: (params?: QueryParams) =>
     `${hpaElasticity.build(params)}\n| summarize hpas = count(), by:{prioridad, elasticidad, tier}\n| sort prioridad asc, tier asc\n| fields elasticidad, tier, hpas`,

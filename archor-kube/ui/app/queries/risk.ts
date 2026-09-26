@@ -17,11 +17,11 @@ import { excludedNamespacesClause } from "./namespaces";
 export const workloadRisk: QueryDef = {
   id: "risk.workloads",
   module: "availability-risk",
-  title: "Riesgo de caída — réplicas únicas y probes faltantes",
+  title: { en: "Outage risk — single replicas and missing probes", es: "Riesgo de caída — réplicas únicas y probes faltantes" },
   description:
-    "Workloads con réplica única o sin liveness/readiness, con score 1-3 y tier/squad",
+    { en: "Workloads with a single replica or no liveness/readiness, with a 1-3 score and tier/squad", es: "Workloads con réplica única o sin liveness/readiness, con score 1-3 y tier/squad" },
   window: snapshotWindow(
-    "Foto del estado actual de la topología (smartscape): réplicas y probes tal como están definidos ahora mismo, sin histórico.",
+    { en: "Snapshot of the current topology (smartscape): replicas and probes as they are defined right now, no history.", es: "Foto del estado actual de la topología (smartscape): réplicas y probes tal como están definidos ahora mismo, sin histórico." },
   ),
   build: (params?: QueryParams) => `smartscapeNodes K8S_DEPLOYMENT, K8S_STATEFULSET
 | parse k8s.object, "JSON:config"
@@ -77,10 +77,10 @@ export const riskBreakdown = (
 export const workloadRiskSummary: QueryDef = {
   id: "risk.summary",
   module: "availability-risk",
-  title: "Resumen por nivel de riesgo y tier",
-  description: "Cantidad de workloads por nivel/score de riesgo y tier",
+  title: { en: "Summary by risk level and tier", es: "Resumen por nivel de riesgo y tier" },
+  description: { en: "Workloads by risk level/score and tier", es: "Cantidad de workloads por nivel/score de riesgo y tier" },
   window: snapshotWindow(
-    "Foto del estado actual de la topología (smartscape), sin histórico.",
+    { en: "Snapshot of the current topology (smartscape), no history.", es: "Foto del estado actual de la topología (smartscape), sin histórico." },
   ),
   build: (params?: QueryParams) =>
     `${workloadRisk.build(params)}\n| summarize workloads = count(), by:{risk_score, nivel, tier}\n| sort risk_score desc, tier asc\n| fields nivel, risk_score, tier, workloads`,

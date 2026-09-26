@@ -3,6 +3,7 @@
  * Cada módulo (M1–M11 en docs/SPEC.md) aporta sus queries como QueryDef,
  * de forma que las páginas solo consumen el registro y nunca strings sueltos.
  */
+import type { Localized } from "../i18n";
 import type { AnalysisWindow } from "./analysisWindow";
 
 export type ModuleId =
@@ -41,8 +42,8 @@ export interface QueryParams {
 export interface QueryDef {
   id: string;
   module: ModuleId;
-  title: string;
-  description: string;
+  title: Localized;
+  description: Localized;
   /** Construye el string DQL final a partir de los parámetros. */
   build: (params?: QueryParams) => string;
   /** Periodo de datos que analiza la query (se muestra en la página). */

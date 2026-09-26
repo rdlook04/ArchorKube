@@ -11,6 +11,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 
 import { type BreakdownDimension, idleBreakdown } from "../queries/idle";
 import type { TierFilterValue } from "./TierFilters";
+import { useT } from "../i18n";
 
 /** Colores semánticos por veredicto (mismo criterio que los highlights de la tabla). */
 const VERDICT_COLORS: Record<string, string> = {
@@ -18,14 +19,6 @@ const VERDICT_COLORS: Record<string, string> = {
   OCIOSO_SIN_DATO_APM: Colors.Background.Container.Warning.Accent,
   DESCARTADO_INESTABLE: Colors.Background.Container.Critical.Accent,
   DESCARTADO_CON_TRAFICO: Colors.Background.Container.Neutral.Accent,
-};
-
-const DIMENSION_LABEL: Record<BreakdownDimension, string> = {
-  tier: "Tier",
-  squad: "Squad",
-  tribu: "Tribu",
-  rango_mem: "Rango de memoria reservada",
-  uso_vs_reserva: "Uso vs. reserva",
 };
 
 interface BreakdownRecord {
@@ -41,6 +34,8 @@ interface BreakdownRecord {
  * una categoría; cada segmento, un veredicto con su color semántico.
  */
 export const IdleVerdictChart = ({ filters }: { filters: TierFilterValue }) => {
+  const { t } = useT();
+  const c = t.chart;
   const [dimension, setDimension] = useState<BreakdownDimension>("tier");
   const { data, error, isLoading } = useDql({ query: idleBreakdown(dimension, filters) });
 
@@ -48,7 +43,7 @@ export const IdleVerdictChart = ({ filters }: { filters: TierFilterValue }) => {
     const records = (data?.records ?? []) as BreakdownRecord[];
     const byCategory = new Map<string, Record<string, number>>();
     for (const r of records) {
-      const category = r.category ?? "(sin dato)";
+      const category = r.category ?? c.noData;
       const veredicto = r.veredicto ?? "?";
       const workloads = Number(r.workloads ?? 0);
       const bucket = byCategory.get(category) ?? {};
@@ -56,29 +51,29 @@ export const IdleVerdictChart = ({ filters }: { filters: TierFilterValue }) => {
       byCategory.set(category, bucket);
     }
     return [...byCategory.entries()].map(([category, value]) => ({ category, value }));
-  }, [data?.records]);
+  }, [data?.records, c.noData]);
 
   return (
     <Flex flexDirection="column" gap={8}>
       <Flex justifyContent="space-between" alignItems="center" gap={8}>
-        <Heading level={4}>Veredictos por {DIMENSION_LABEL[dimension].toLowerCase()}</Heading>
+        <Heading level={4}>{c.by(c.nouns.verdicts, c.dimension[dimension])}</Heading>
         <Select
-          aria-label="Agrupar por"
+          aria-label={c.groupBy}
           value={dimension}
           onChange={(value) => value && setDimension(value)}
         >
           <Select.Trigger />
           <Select.Content>
-            <Select.Option value="tier">Tier</Select.Option>
-            <Select.Option value="squad">Squad</Select.Option>
-            <Select.Option value="tribu">Tribu</Select.Option>
-            <Select.Option value="rango_mem">Rango de memoria reservada</Select.Option>
-            <Select.Option value="uso_vs_reserva">Uso vs. reserva</Select.Option>
+            <Select.Option value="tier">{c.dimension.tier}</Select.Option>
+            <Select.Option value="squad">{c.dimension.squad}</Select.Option>
+            <Select.Option value="tribu">{c.dimension.tribu}</Select.Option>
+            <Select.Option value="rango_mem">{c.dimension.rango_mem}</Select.Option>
+            <Select.Option value="uso_vs_reserva">{c.dimension.uso_vs_reserva}</Select.Option>
           </Select.Content>
         </Select>
       </Flex>
-      {isLoading && <ProgressCircle aria-label="Cargando gráfica" />}
-      {error && <Paragraph>Error DQL: {error.message}</Paragraph>}
+      {isLoading && <ProgressCircle aria-label={c.loading} />}
+      {error && <Paragraph>{c.dqlError} {error.message}</Paragraph>}
       {!isLoading && !error && (
         <CategoricalBarChart
           data={chartData}
@@ -87,8 +82,8 @@ export const IdleVerdictChart = ({ filters }: { filters: TierFilterValue }) => {
           colorPalette={VERDICT_COLORS}
           height={340}
         >
-          <CategoricalBarChart.CategoryAxis label={DIMENSION_LABEL[dimension]} />
-          <CategoricalBarChart.ValueAxis label="Workloads" />
+          <CategoricalBarChart.CategoryAxis label={c.dimension[dimension]} />
+          <CategoricalBarChart.ValueAxis label={c.axis.workloads} />
           <CategoricalBarChart.Legend position="bottom" />
         </CategoricalBarChart>
       )}

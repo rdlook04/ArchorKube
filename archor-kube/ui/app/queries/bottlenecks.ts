@@ -19,11 +19,11 @@ import { rangeWindow } from "./analysisWindow";
 export const throttlingPeaks: QueryDef = {
   id: "bottlenecks.throttling",
   module: "bottlenecks",
-  title: "Picos de CPU throttling por workload (24h)",
+  title: { en: "CPU throttling peaks by workload (24h)", es: "Picos de CPU throttling por workload (24h)" },
   description:
-    "Workloads cuyo throttling pico supera el 25% de su límite de CPU",
+    { en: "Workloads whose peak throttling exceeds 25% of their CPU limit", es: "Workloads cuyo throttling pico supera el 25% de su límite de CPU" },
   window: rangeWindow(24,
-    "Picos de CPU throttling de las últimas 24 horas. Ojo: la gráfica de saturación de nodos al costado mira solo las últimas 2 horas, así que las dos vistas no cubren el mismo periodo.",
+    { en: "CPU throttling peaks over the last 24 hours. Note: the node saturation chart beside it only looks at the last 2 hours, so the two views don't cover the same period.", es: "Picos de CPU throttling de las últimas 24 horas. Ojo: la gráfica de saturación de nodos al costado mira solo las últimas 2 horas, así que las dos vistas no cubren el mismo periodo." },
   ),
   build: (params?: QueryParams) => `timeseries {
   throttled = avg(dt.kubernetes.container.cpu_throttled),
@@ -68,10 +68,10 @@ export const throttlingBreakdown = (
 export const throttlingSummary: QueryDef = {
   id: "bottlenecks.throttling-summary",
   module: "bottlenecks",
-  title: "Resumen por severidad de throttling y tier",
-  description: "Workloads con picos de throttling por severidad y tier",
+  title: { en: "Summary by throttling severity and tier", es: "Resumen por severidad de throttling y tier" },
+  description: { en: "Workloads with throttling peaks by severity and tier", es: "Workloads con picos de throttling por severidad y tier" },
   window: rangeWindow(24,
-    "Picos de CPU throttling de las últimas 24 horas.",
+    { en: "CPU throttling peaks over the last 24 hours.", es: "Picos de CPU throttling de las últimas 24 horas." },
   ),
   build: (params?: QueryParams) =>
     `${throttlingPeaks.build(params)}\n| summarize workloads = count(), peak_max_pct = round(max(throttle_peak_pct), decimals:0), by:{prioridad, severidad, tier}\n| sort prioridad asc, tier asc\n| fields severidad, tier, workloads, peak_max_pct`,
@@ -80,10 +80,10 @@ export const throttlingSummary: QueryDef = {
 export const nodeSaturation: QueryDef = {
   id: "bottlenecks.nodes",
   module: "bottlenecks",
-  title: "Saturación de nodos (CPU/MEM %)",
-  description: "Nodos con uso de CPU o memoria del host sobre el 80%",
+  title: { en: "Node saturation (CPU/MEM %)", es: "Saturación de nodos (CPU/MEM %)" },
+  description: { en: "Nodes with host CPU or memory usage above 80%", es: "Nodos con uso de CPU o memoria del host sobre el 80%" },
   window: rangeWindow(2,
-    "Uso de CPU y memoria de los nodos en las últimas 2 horas (timeframe por defecto de Grail).",
+    { en: "Node CPU and memory usage over the last 2 hours (Grail's default timeframe).", es: "Uso de CPU y memoria de los nodos en las últimas 2 horas (timeframe por defecto de Grail)." },
   ),
   build: () => `timeseries {
   cpu = avg(dt.host.cpu.usage),

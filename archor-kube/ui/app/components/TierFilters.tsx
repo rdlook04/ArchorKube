@@ -6,6 +6,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 
 import type { QueryParams } from "../queries";
 import { EXTRA_FILTERS } from "../config/extraFilters";
+import { useT } from "../i18n";
 import type { ExtraFilter } from "../config/extraFilters";
 import {
   CLUSTER_FILTER_OPTIONS_QUERY,
@@ -38,6 +39,7 @@ const ExtraFilterSelect = ({
   value: string | undefined;
   onChange: (value: string | undefined) => void;
 }) => {
+  const { t } = useT();
   const { data } = useDql({ query: extraFilterOptionsQuery(filter.key) });
   const values = ((data?.records ?? []) as { value?: string }[])
     .map((r) => r.value)
@@ -50,7 +52,7 @@ const ExtraFilterSelect = ({
       value={value ?? null}
       onChange={(v) => onChange(v ?? undefined)}
     >
-      <Select.Trigger placeholder={`${filter.label}: all`} />
+      <Select.Trigger placeholder={t.module.filters.extraAll(filter.label)} />
       <Select.Content>
         {values.map((v) => (
           <Select.Option key={v} value={v}>
@@ -69,6 +71,8 @@ const ExtraFilterSelect = ({
  * tribu reduce los squads, elegir clúster reduce los namespaces.
  */
 export const TierFilters = ({ value, onChange }: TierFiltersProps) => {
+  const { t } = useT();
+  const f = t.module.filters;
   const options = useDql({ query: TIER_FILTER_OPTIONS_QUERY });
   const clusterOptions = useDql({ query: CLUSTER_FILTER_OPTIONS_QUERY });
   const namespaceOptions = useDql({ query: NAMESPACE_FILTER_OPTIONS_QUERY });
@@ -117,14 +121,14 @@ export const TierFilters = ({ value, onChange }: TierFiltersProps) => {
   return (
     <Flex gap={8} flexWrap="wrap">
       <Select
-        aria-label="Cluster"
+        aria-label={f.cluster}
         clearable
         value={value.cluster ?? null}
         onChange={(cluster) =>
           onChange({ ...value, cluster: cluster ?? undefined, namespace: undefined })
         }
       >
-        <Select.Trigger placeholder="Cluster: todos" />
+        <Select.Trigger placeholder={f.clusterAll} />
         <Select.Content>
           {clusters.map((c) => (
             <Select.Option key={c} value={c}>
@@ -134,13 +138,13 @@ export const TierFilters = ({ value, onChange }: TierFiltersProps) => {
         </Select.Content>
       </Select>
       <Select
-        aria-label="Namespace"
+        aria-label={f.namespace}
         clearable
         value={value.namespace ?? null}
         onChange={(namespace) => onChange({ ...value, namespace: namespace ?? undefined })}
       >
         <Select.Filter />
-        <Select.Trigger placeholder="Namespace: todos" />
+        <Select.Trigger placeholder={f.namespaceAll} />
         <Select.Content>
           {namespaces.map((n) => (
             <Select.Option key={n} value={n}>
@@ -150,12 +154,12 @@ export const TierFilters = ({ value, onChange }: TierFiltersProps) => {
         </Select.Content>
       </Select>
       <Select
-        aria-label="Tier"
+        aria-label={f.tier}
         clearable
         value={value.tier ?? null}
         onChange={(tier) => onChange({ ...value, tier: tier ?? undefined, squad: undefined })}
       >
-        <Select.Trigger placeholder="Tier: todos" />
+        <Select.Trigger placeholder={f.tierAll} />
         <Select.Content>
           {tiers.map((t) => (
             <Select.Option key={t} value={t}>
@@ -165,12 +169,12 @@ export const TierFilters = ({ value, onChange }: TierFiltersProps) => {
         </Select.Content>
       </Select>
       <Select
-        aria-label="Tribu"
+        aria-label={f.tribu}
         clearable
         value={value.tribu ?? null}
         onChange={(tribu) => onChange({ ...value, tribu: tribu ?? undefined, squad: undefined })}
       >
-        <Select.Trigger placeholder="Tribu: todas" />
+        <Select.Trigger placeholder={f.tribuAll} />
         <Select.Content>
           {tribus.map((t) => (
             <Select.Option key={t} value={t}>
@@ -180,12 +184,12 @@ export const TierFilters = ({ value, onChange }: TierFiltersProps) => {
         </Select.Content>
       </Select>
       <Select
-        aria-label="Squad"
+        aria-label={f.squad}
         clearable
         value={value.squad ?? null}
         onChange={(squad) => onChange({ ...value, squad: squad ?? undefined })}
       >
-        <Select.Trigger placeholder="Squad: todos" />
+        <Select.Trigger placeholder={f.squadAll} />
         <Select.Content>
           {squads.map((s) => (
             <Select.Option key={s} value={s}>

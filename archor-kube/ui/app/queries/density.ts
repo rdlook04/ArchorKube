@@ -20,11 +20,11 @@ import { rangeWindow } from "./analysisWindow";
 export const nodeRightsizing: QueryDef = {
   id: "density.node-rightsizing",
   module: "density",
-  title: "Rightsizing de nodos — consolidación por clúster",
+  title: { en: "Node rightsizing — consolidation by cluster", es: "Rightsizing de nodos — consolidación por clúster" },
   description:
-    "Nodos subutilizados con acción sugerida: eliminar, consolidar o monitorear",
+    { en: "Underused nodes with a suggested action: remove, consolidate or monitor", es: "Nodos subutilizados con acción sugerida: eliminar, consolidar o monitorear" },
   window: rangeWindow(2,
-    "Uso y capacidad de los nodos promediados sobre las últimas 2 horas (timeframe por defecto de Grail para `timeseries`).",
+    { en: "Node usage and capacity averaged over the last 2 hours (Grail's default timeframe for `timeseries`).", es: "Uso y capacidad de los nodos promediados sobre las últimas 2 horas (timeframe por defecto de Grail para `timeseries`)." },
   ),
   build: () => `timeseries {
   node_cpu_alloc = avg(dt.kubernetes.node.cpu_allocatable),
@@ -153,10 +153,10 @@ export const nodeActionBreakdown = (params?: QueryParams): string =>
 export const nodeRightsizingSummary: QueryDef = {
   id: "density.summary",
   module: "density",
-  title: "Resumen por clúster y acción",
-  description: "Cantidad de nodos subutilizados por clúster y acción sugerida",
+  title: { en: "Summary by cluster and action", es: "Resumen por clúster y acción" },
+  description: { en: "Underused nodes by cluster and suggested action", es: "Cantidad de nodos subutilizados por clúster y acción sugerida" },
   window: rangeWindow(2,
-    "Uso y capacidad de los nodos promediados sobre las últimas 2 horas (timeframe por defecto de Grail para `timeseries`).",
+    { en: "Node usage and capacity averaged over the last 2 hours (Grail's default timeframe for `timeseries`).", es: "Uso y capacidad de los nodos promediados sobre las últimas 2 horas (timeframe por defecto de Grail para `timeseries`)." },
   ),
   build: (params?: QueryParams) =>
     `${nodeRightsizing.build(params)}\n| summarize nodos = count(), ahorro_mes_usd = round(sum(ahorro_mes_usd), decimals:0), cpu_idle_total = round(sum(cpu_idle_cores), decimals:1), mem_idle_total_gb = round(sum(mem_idle_gb), decimals:1), by:{prioridad, \`k8s.cluster.name\`, accion}\n| sort prioridad asc, nodos desc\n| fields \`k8s.cluster.name\`, accion, nodos, ahorro_mes_usd, cpu_idle_total, mem_idle_total_gb`,

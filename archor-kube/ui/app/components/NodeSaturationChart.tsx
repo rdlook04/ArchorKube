@@ -9,6 +9,7 @@ import { ProgressCircle } from "@dynatrace/strato-components/content";
 import { useDql } from "@dynatrace-sdk/react-hooks";
 
 import { nodeSaturation } from "../queries/bottlenecks";
+import { useT } from "../i18n";
 
 /** CPU en rojo, MEM en primario (barras agrupadas por nodo). */
 const METRIC_COLORS: Record<string, string> = {
@@ -28,26 +29,28 @@ interface NodeRecord {
  * segundo ángulo de "cuellos de botella" (los nodos no tienen tier).
  */
 export const NodeSaturationChart = () => {
+  const { t } = useT();
+  const c = t.chart;
   const { data, error, isLoading } = useDql({ query: nodeSaturation.build() });
 
   const chartData = useMemo<CategoricalBarChartData[]>(() => {
     const records = (data?.records ?? []) as NodeRecord[];
     return records.map((r) => ({
-      category: r["k8s.node.name"] ?? "(sin nodo)",
+      category: r["k8s.node.name"] ?? c.noNode,
       value: {
         "CPU max %": Number(r.cpu_max ?? 0),
         "MEM max %": Number(r.mem_max ?? 0),
       },
     }));
-  }, [data?.records]);
+  }, [data?.records, c.noNode]);
 
   return (
     <Flex flexDirection="column" gap={8}>
-      <Heading level={4}>Saturación de nodos (host CPU/MEM &gt; 80%)</Heading>
-      {isLoading && <ProgressCircle aria-label="Cargando gráfica" />}
-      {error && <Paragraph>Error DQL: {error.message}</Paragraph>}
+      <Heading level={4}>{c.saturationTitle}</Heading>
+      {isLoading && <ProgressCircle aria-label={c.loading} />}
+      {error && <Paragraph>{c.dqlError} {error.message}</Paragraph>}
       {!isLoading && !error && chartData.length === 0 && (
-        <Paragraph>Ningún nodo supera el 80% de CPU o memoria del host.</Paragraph>
+        <Paragraph>{c.noSaturation}</Paragraph>
       )}
       {!isLoading && !error && chartData.length > 0 && (
         <CategoricalBarChart
@@ -57,8 +60,8 @@ export const NodeSaturationChart = () => {
           colorPalette={METRIC_COLORS}
           height={340}
         >
-          <CategoricalBarChart.CategoryAxis label="Nodo" />
-          <CategoricalBarChart.ValueAxis label="% uso host" />
+          <CategoricalBarChart.CategoryAxis label={c.axis.node} />
+          <CategoricalBarChart.ValueAxis label={c.axis.hostUsage} />
           <CategoricalBarChart.Legend position="bottom" />
         </CategoricalBarChart>
       )}
