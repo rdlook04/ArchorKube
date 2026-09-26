@@ -1,8 +1,8 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { AppHeader } from "@dynatrace/strato-components/layouts";
 import { Tooltip } from "@dynatrace/strato-components/overlays";
-import { HelpIcon } from "@dynatrace/strato-icons";
+import { HelpIcon, SettingIcon } from "@dynatrace/strato-icons";
 
 interface NavItem {
   to: string;
@@ -99,6 +99,7 @@ interface HeaderProps {
 }
 
 export const Header = ({ onHelp }: HeaderProps) => {
+  const { pathname } = useLocation();
   return (
     <AppHeader>
       <AppHeader.Navigation>
@@ -127,6 +128,14 @@ export const Header = ({ onHelp }: HeaderProps) => {
         ))}
       </AppHeader.Navigation>
       <AppHeader.ActionItems>
+        <AppHeader.ActionButton
+          as={Link}
+          to="/settings"
+          prefixIcon={<SettingIcon />}
+          isSelected={pathname === "/settings"}
+        >
+          Settings
+        </AppHeader.ActionButton>
         <AppHeader.ActionButton prefixIcon={<HelpIcon />} onClick={onHelp}>
           Help
         </AppHeader.ActionButton>

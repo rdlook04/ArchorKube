@@ -25,6 +25,25 @@ export const getBridgeUrl = (): string => {
   }
 };
 
+/** Vacío vuelve al default. Devuelve false si no es una URL http(s) válida. */
+export const setBridgeUrl = (url: string): boolean => {
+  const trimmed = url.trim();
+  if (trimmed) {
+    try {
+      if (!/^https?:$/.test(new URL(trimmed).protocol)) return false;
+    } catch {
+      return false;
+    }
+  }
+  try {
+    if (trimmed) window.localStorage.setItem(BRIDGE_URL_KEY, trimmed);
+    else window.localStorage.removeItem(BRIDGE_URL_KEY);
+  } catch {
+    // Sin storage se sigue usando el default.
+  }
+  return true;
+};
+
 export type BridgeResult = "sent" | "blocked" | "timeout";
 
 /**
