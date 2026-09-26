@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { AppHeader } from "@dynatrace/strato-components/layouts";
 import { Tooltip } from "@dynatrace/strato-components/overlays";
-import { HelpIcon, SettingIcon } from "@dynatrace/strato-icons";
+import { CheckmarkIcon, HelpIcon, SettingIcon } from "@dynatrace/strato-icons";
 
 interface NavItem {
   to: string;
@@ -133,6 +133,14 @@ export const Header = ({ onHelp }: HeaderProps) => {
         ))}
       </AppHeader.Navigation>
       <AppHeader.ActionItems>
+        <AppHeader.ActionButton
+          as={Link}
+          to="/setup"
+          prefixIcon={<CheckmarkIcon />}
+          isSelected={pathname === "/setup"}
+        >
+          Setup
+        </AppHeader.ActionButton>
         <AppHeader.ActionButton
           as={Link}
           to="/settings"

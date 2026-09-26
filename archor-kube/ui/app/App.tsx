@@ -20,6 +20,7 @@ import { Nodes } from "./pages/Nodes";
 import { Rightsizing } from "./pages/Rightsizing";
 import { Risk } from "./pages/Risk";
 import { Settings } from "./pages/Settings";
+import { Setup } from "./pages/Setup";
 import { Spend } from "./pages/Spend";
 import { TierPending } from "./pages/TierPending";
 import { Tiers } from "./pages/Tiers";
@@ -53,6 +54,7 @@ export const App = () => {
               <Route path="/compliance" element={<Compliance />} />
               <Route path="/spend" element={<Spend />} />
               <Route path="/guide" element={<Guide />} />
+              <Route path="/setup" element={<Setup />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </PageLayout.Content>
