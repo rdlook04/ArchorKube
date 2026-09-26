@@ -1,6 +1,6 @@
 import { PageLayout } from "@dynatrace/strato-components/layouts";
 import { ToastContainer } from "@dynatrace/strato-components/notifications";
-import React from "react";
+import React, { useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import { Bottlenecks } from "./pages/Bottlenecks";
 import { Compliance } from "./pages/Compliance";
@@ -10,6 +10,7 @@ import { Idle } from "./pages/Idle";
 import { Orphans } from "./pages/Orphans";
 import { Preventive } from "./pages/Preventive";
 import { Elasticity } from "./pages/Elasticity";
+import { CommunityNotice, isNoticeDismissed } from "./components/CommunityNotice";
 import { Header } from "./components/Header";
 import { Home } from "./pages/Home";
 import { Nodes } from "./pages/Nodes";
@@ -20,10 +21,12 @@ import { TierPending } from "./pages/TierPending";
 import { Tiers } from "./pages/Tiers";
 
 export const App = () => {
+  const [noticeOpen, setNoticeOpen] = useState(() => !isNoticeDismissed());
+
   return (
     <PageLayout>
       <PageLayout.Header>
-        <Header />
+        <Header onHelp={() => setNoticeOpen(true)} />
       </PageLayout.Header>
       <PageLayout.Content>
         <Routes>
@@ -44,6 +47,7 @@ export const App = () => {
           <Route path="/spend" element={<Spend />} />
         </Routes>
       </PageLayout.Content>
+      <CommunityNotice show={noticeOpen} onClose={() => setNoticeOpen(false)} />
       <ToastContainer />
     </PageLayout>
   );

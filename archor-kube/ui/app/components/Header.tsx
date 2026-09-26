@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { AppHeader } from "@dynatrace/strato-components/layouts";
 import { Tooltip } from "@dynatrace/strato-components/overlays";
+import { HelpIcon } from "@dynatrace/strato-icons";
 
 interface NavItem {
   to: string;
@@ -92,7 +93,12 @@ const NAV: NavItem[] = [
   },
 ];
 
-export const Header = () => {
+interface HeaderProps {
+  /** Abre el aviso de app comunitaria (y, más adelante, la Guía). */
+  onHelp: () => void;
+}
+
+export const Header = ({ onHelp }: HeaderProps) => {
   return (
     <AppHeader>
       <AppHeader.Navigation>
@@ -120,6 +126,11 @@ export const Header = () => {
           </AppHeader.NavigationItem>
         ))}
       </AppHeader.Navigation>
+      <AppHeader.ActionItems>
+        <AppHeader.ActionButton prefixIcon={<HelpIcon />} onClick={onHelp}>
+          Help
+        </AppHeader.ActionButton>
+      </AppHeader.ActionItems>
     </AppHeader>
   );
 };
