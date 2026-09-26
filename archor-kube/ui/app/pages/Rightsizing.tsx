@@ -15,6 +15,7 @@ import {
   assistRightsizingPrompt,
 } from "../queries/assist";
 import { workloadUrl } from "../queries/links";
+import { rightsizingPractices, useOpenGuide } from "../practices/flagged";
 
 /** Copia el prompt de Assist al portapapeles y avisa con un toast. */
 const copyAssistPrompt = (row: Record<string, unknown>) => {
@@ -34,7 +35,9 @@ const copyAssistPrompt = (row: Record<string, unknown>) => {
 };
 
 /** Menú por fila: Assist + copiar prompt + deep link al workload. */
-const rightsizingRowActions = (row: Record<string, unknown>) => {
+const RightsizingRowMenu = ({ row }: { row: Record<string, unknown> }) => {
+  const openGuide = useOpenGuide();
+  const flagged = rightsizingPractices(row);
   const deploymentUrl = workloadUrl(row.deployment_id);
   return (
     <Menu>
@@ -44,6 +47,9 @@ const rightsizingRowActions = (row: Record<string, unknown>) => {
         </Button>
       </Menu.Trigger>
       <Menu.Content>
+        <Menu.Item disabled={flagged.length === 0} onSelect={() => openGuide(flagged, row)}>
+          Why is this flagged?
+        </Menu.Item>
         <Menu.Intent payload={assistRightsizingPayload(row)} options={ASSIST_INTENT_OPTIONS}>
           Preguntar a Dynatrace Assist
         </Menu.Intent>
@@ -81,9 +87,10 @@ Cada fila es un **pod** cuyo dimensionamiento (los *requests* y *limits* de CPU/
 * **\`THROTTLING_CRITICO\`:** El *limit* de CPU está estrangulando al pod (>25% del tiempo). Sufre latencia aunque el nodo tenga CPU libre.
 * **\`REQUEST_SUBDIMENSIONADO\`:** El uso supera al *request* (slack negativo). El pod pide menos de lo que gasta y es candidato a desalojo u *OOM* bajo presión.
 * **\`SOBREAPROVISIONADO_CPU_MEM\`:** Reserva de sobra en CPU **y** memoria (>70% ocioso en ambas). El caso más caro.
-* **\`SOBREAPROVISIONADO_CPU\` / \`SOBREAPROVISIONADO_MEM\`:** Reserva de sobra en un solo recurso.
+* **\`SOBREAPROVISIONADO_CPU\` / \`SOBREAPROVISIONADO_MEM\`:** Reserva de sobra en un solo recurso (>70% ocioso).
+* **\`REVISAR\`:** Entre 40% y 70% de la reserva sin usar. No es urgente, pero conviene mirarlo en la próxima revisión.
 
-*Umbrales: slack >40% (ocioso), throttling >25% (crítico), slack negativo (subdimensionado).*
+*Umbrales: un pod entra a la lista con slack >40%, throttling >25% o slack negativo; se marca sobreaprovisionado desde 70%.*
 
 ---
 
@@ -186,7 +193,7 @@ export const Rightsizing = () => (
       },
       { id: "mem_slack_mb", header: "MEM slack (MB)", accessor: "mem_slack_mb", columnType: "number" },
     ]}
-    rowActions={rightsizingRowActions}
+    rowActions={(row) => <RightsizingRowMenu row={row} />}
     summaryAside={(filters) => <RightsizingProblemChart filters={filters} />}
     detailFacets={[{ id: "problema", label: "Problema" }]}
     detailNoun="pods con hallazgos de rightsizing (throttling/subdimensionado primero)"

@@ -10,11 +10,13 @@
  * y para gente que no administra Kubernetes: cada término técnico se explica
  * la primera vez que aparece.
  *
- * Primera tanda: las 8 SPEC que mide M12 Cumplimiento, en su orden de
- * prioridad de remediación.
+ * Primera tanda: las 8 SPEC que mide M12 Cumplimiento. Segunda tanda: las
+ * reglas de criterio de los otros módulos (réplicas, HPA, estabilidad,
+ * rightsizing, ociosos, huérfanos). El orden del arreglo es el de la Guía:
+ * por severidad y, dentro de cada una, por prioridad de remediación.
  */
 
-export type Severity = "critical" | "high" | "medium" | "security" | "traceability";
+export type Severity = "critical" | "high" | "medium" | "cost" | "security" | "traceability";
 
 export interface Practice {
   /** Estable: se usa en la URL (`/guide?focus=…`). */
@@ -61,19 +63,30 @@ export const SEVERITY_META: Record<Severity, { label: string; meaning: string; o
     meaning: "Degrades latency or scheduling, but rarely takes a service down.",
     order: 2,
   },
+  cost: {
+    label: "Cost",
+    meaning: "Doesn't affect availability; it's money paid for capacity nobody uses.",
+    order: 3,
+  },
   security: {
     label: "Security",
     meaning: "Doesn't affect availability; limits the damage of a compromise.",
-    order: 3,
+    order: 4,
   },
   traceability: {
     label: "Traceability",
     meaning: "Doesn't affect availability; makes deployments reproducible and auditable.",
-    order: 4,
+    order: 5,
   },
 };
 
 const M12 = { route: "/compliance", module: "Compliance (M12)" };
+const RISK = { route: "/risk", module: "Risk (M5)" };
+const ELASTICITY = { route: "/elasticity", module: "Elasticity (M5)" };
+const RIGHTSIZING = { route: "/rightsizing", module: "Rightsizing (M1/M2)" };
+const IDLE = { route: "/idle", module: "Idle (M3)" };
+const ORPHANS = { route: "/orphans", module: "Orphans (M6)" };
+const PREVENTIVE = { route: "/preventive", module: "Preventive (M8)" };
 
 export const PRACTICES: Practice[] = [
   {
@@ -144,6 +157,39 @@ export const PRACTICES: Practice[] = [
     },
   },
   {
+    id: "multiple-replicas",
+    title: "More than one replica",
+    severity: "critical",
+    what: "Running at least two copies (replicas) of the app at the same time, so one can go away while the other keeps serving.",
+    why: "With a single replica, anything that stops that one pod stops the service: a crash, a deploy, or the platform team patching the node it runs on.",
+    incident:
+      "Routine node maintenance on a Tuesday night takes the service down for a few minutes. Nobody changed anything in the app, and it still shows up as an outage.",
+    howTo: [
+      "Set replicas to at least 2 for anything users or other services depend on.",
+      "Add a PodDisruptionBudget so voluntary disruptions (node drains, upgrades) never take all replicas at once.",
+      "Spread the replicas across nodes (topologySpreadConstraints) so one node failing doesn't take both.",
+    ],
+    yaml: `apiVersion: apps/v1
+kind: Deployment
+spec:
+  replicas: 2
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: my-service`,
+    caveat:
+      "Two replicas only help if both can take traffic: they need a readiness probe, and the app must not keep state in memory that the other copy lacks. Batch jobs and singletons (a scheduler that must run once) are legitimate exceptions.",
+    owner: "The squad that owns the service",
+    measuredBy: {
+      ...RISK,
+      how: "Flags Deployments and StatefulSets with replicas = 1 or no replicas set. The Risk module adds missing probes to the same score.",
+    },
+  },
+  {
     id: "memory-limit",
     code: "SPEC02",
     title: "Memory limit",
@@ -194,6 +240,65 @@ export const PRACTICES: Practice[] = [
     measuredBy: {
       ...M12,
       how: "Flags a workload when any of its containers has no resources.requests.memory.",
+    },
+  },
+  {
+    id: "autoscaler-headroom",
+    title: "Autoscaler with room to grow",
+    severity: "high",
+    what: "When an app scales on its own (a HorizontalPodAutoscaler, HPA), its maximum number of replicas must leave room above what it normally uses.",
+    why: "An autoscaler at its maximum can't add replicas when traffic grows. An autoscaler whose minimum equals its maximum never scales at all: it only looks like autoscaling.",
+    incident:
+      "A traffic peak arrives, the autoscaler wants more pods but is capped, and the existing ones saturate: latency climbs and requests start failing while the dashboard says autoscaling is on.",
+    howTo: [
+      "Set maxReplicas with real headroom above the usual peak, and check the cluster has capacity for it.",
+      "Make minReplicas lower than maxReplicas; if the count should be fixed, remove the HPA and set replicas honestly.",
+      "Review HPAs that sit at their maximum: either raise it or find out why the app needs so many pods.",
+    ],
+    yaml: `apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+spec:
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70`,
+    caveat:
+      "The HPA scales on usage relative to the request, so a wrong CPU request makes it scale too early or too late. Fix rightsizing first, then tune the HPA.",
+    owner: "The squad that owns the service, with the platform team for cluster capacity",
+    measuredBy: {
+      ...ELASTICITY,
+      how: "Flags HPAs whose ScalingLimited condition says TooManyReplicas (capped at the maximum) and HPAs where minReplicas equals maxReplicas.",
+    },
+  },
+  {
+    id: "stable-containers",
+    title: "No OOM kills or restart loops",
+    severity: "high",
+    what: "Containers should stay up. An OOM kill means the container went over its memory limit and was killed; a restart loop means it keeps crashing and coming back.",
+    why: "Each restart drops the requests in flight and, while the pod is down, the remaining replicas carry its load. Repeated restarts are also the earliest warning of a bigger outage.",
+    incident:
+      "A service restarts a few times a day and nobody notices, until a traffic peak makes all its replicas restart at the same time.",
+    howTo: [
+      "For OOM kills, compare memory usage with the limit: if usage climbs steadily until the kill, it's a leak; if it's only a peak, raise the limit.",
+      "For restart loops, read the logs of the previous container to see why it exits.",
+      "Check the liveness probe: a probe that's too strict restarts healthy containers.",
+    ],
+    yaml: `# The previous container's logs explain most restart loops
+kubectl logs <pod> -c <container> --previous -n <namespace>
+
+# Last termination reason (OOMKilled, Error, ...)
+kubectl get pod <pod> -n <namespace> -o jsonpath="{.status.containerStatuses[*].lastState.terminated.reason}"`,
+    caveat:
+      "Raising the memory limit makes an OOM kill go away today; if the cause is a leak, it comes back later and bigger. Look at the memory trend before changing the number.",
+    owner: "The squad that owns the service",
+    measuredBy: {
+      ...PREVENTIVE,
+      how: "Flags workloads with, in the last 24 hours, any OOM kill, more than 10 restarts (a loop) or more than 3 restarts (elevated).",
     },
   },
   {
@@ -249,6 +354,61 @@ export const PRACTICES: Practice[] = [
     },
   },
   {
+    id: "right-sized-requests",
+    title: "Requests close to real usage",
+    severity: "medium",
+    what: "What a container reserves (its requests) should be close to what it actually uses. Kubernetes places pods by what they reserve, not by what they use.",
+    why: "Reserving far more than you use leaves node capacity blocked and paid for, but idle. Reserving less than you use packs too many pods on a node, and they fight for CPU and memory.",
+    incident:
+      "The cluster keeps adding nodes because it looks full, while real usage sits at a fraction of it. The bill grows every month and nothing is busier.",
+    howTo: [
+      "Look at real usage in the Rightsizing module before changing anything.",
+      "Set requests near typical usage and leave the peaks to the limits.",
+      "If CPU throttling is high, raise the CPU limit (or the request) before touching anything else.",
+      "Change a few workloads at a time and watch latency.",
+    ],
+    yaml: `containers:
+  - name: app
+    resources:
+      requests:
+        cpu: "200m"      # close to typical usage
+        memory: "384Mi"
+      limits:
+        cpu: "1"         # room for bursts
+        memory: "512Mi"`,
+    caveat:
+      "The Rightsizing module looks at a short window. Month-end closes, campaigns or batch windows can need much more than a normal day shows, so check the history before cutting.",
+    owner: "The squad that owns the service, with FinOps to prioritize",
+    measuredBy: {
+      ...RIGHTSIZING,
+      how: "Lists pods with more than 40% of the CPU or memory request unused, usage above the request (under-provisioned) or CPU throttling above 25%. From 70% unused it marks them over-provisioned; between 40% and 70%, it marks them as to review.",
+    },
+  },
+  {
+    id: "no-idle-workloads",
+    title: "Scale down what nobody uses",
+    severity: "cost",
+    what: "A workload with no traffic and no activity for a week should be scaled to zero or removed, not left running.",
+    why: "An idle workload still reserves CPU and memory on the nodes, and that reservation is paid for every hour, whether anyone calls it or not.",
+    incident:
+      "An old version of a service, a finished experiment or a forgotten test environment keeps running for months. Each one is small; together they are whole nodes the company pays for.",
+    howTo: [
+      "Confirm it's really idle: no business traffic in a week, and not crashing (a broken service also looks quiet).",
+      "Ask the owning squad: some services only work at month-end or during a yearly process.",
+      "Scale it to zero first and delete it later, so it can come back quickly if someone needed it.",
+      "For services with irregular traffic, use scale-to-zero autoscaling (for example KEDA) instead of keeping replicas up.",
+    ],
+    yaml: `# Scale to zero first; delete only after confirming nobody misses it
+kubectl scale deployment <workload> --replicas=0 -n <namespace>`,
+    caveat:
+      "Low CPU alone isn't idle: an efficient service can serve thousands of requests with almost no CPU. ArchorKube only confirms idle when traffic, stability and CPU agree.",
+    owner: "The squad that owns the service, with FinOps",
+    measuredBy: {
+      ...IDLE,
+      how: "Confirms idle only when all three hold for 7 days: 10 or fewer APM requests, no OOM kills or restart loops, and near-zero CPU (average under 5 mc and peak under 20 mc).",
+    },
+  },
+  {
     id: "non-root",
     code: "SPEC07",
     title: "Run as non-root",
@@ -299,6 +459,32 @@ export const PRACTICES: Practice[] = [
     measuredBy: {
       ...M12,
       how: "Flags a workload when its Deployment/StatefulSet/DaemonSet/Job doesn't carry the label app.kubernetes.io/managed-by = Helm.",
+    },
+  },
+  {
+    id: "owned-workloads",
+    title: "Every workload has an owner and a reason to exist",
+    severity: "traceability",
+    what: "Every workload in the cluster should be registered to a squad in the ownership catalog, and anything scaled to zero for good should be removed.",
+    why: "A workload without an owner has nobody to call when it breaks and nobody to decide whether it's still needed. A workload left at zero replicas is noise that hides what's really running.",
+    incident:
+      "An alert fires on a service nobody recognizes. The on-call engineer spends an hour finding out who owns it, and in the end nobody does.",
+    howTo: [
+      "Register the workload in the ownership catalog with its squad and app code, using the same name it has in the cluster.",
+      "Add ownership labels to the manifest as a fallback.",
+      "For workloads at zero replicas, confirm with the owner and delete the manifest if it's no longer needed.",
+    ],
+    yaml: `metadata:
+  labels:
+    app.kubernetes.io/name: my-service
+    app.kubernetes.io/part-of: payments   # the product
+    team: data-ninjas                      # the owning squad`,
+    caveat:
+      "A workload can look ownerless only because its name in the catalog differs from its name in the cluster. Check the name before assuming it's abandoned.",
+    owner: "The platform team, with each squad keeping its catalog entries current",
+    measuredBy: {
+      ...ORPHANS,
+      how: "Flags Deployments and StatefulSets scaled to 0 replicas, and running workloads whose name matches no squad or app code in the ownership catalog.",
     },
   },
 ];

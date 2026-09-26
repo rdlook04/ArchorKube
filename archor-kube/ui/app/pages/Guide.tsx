@@ -22,6 +22,7 @@ const SEVERITY_COLORS: Record<Severity, { text: string; border: string }> = {
   critical: { text: Colors.Text.Critical.Default, border: Colors.Border.Critical.Accent },
   high: { text: Colors.Text.Warning.Default, border: Colors.Border.Warning.Accent },
   medium: { text: Colors.Text.Primary.Default, border: Colors.Border.Primary.Accent },
+  cost: { text: Colors.Text.Success.Default, border: Colors.Border.Success.Accent },
   security: { text: Colors.Text.Neutral.Default, border: Colors.Border.Neutral.Accent },
   traceability: { text: Colors.Text.Neutral.Default, border: Colors.Border.Neutral.Accent },
 };
@@ -172,11 +173,10 @@ export const Guide = () => {
           <Accordion.Section key={practice.id} id={practice.id}>
             <Accordion.SectionLabel>
               <Flex gap={12} alignItems="center">
-                {practice.code && (
-                  <Text style={{ color: Colors.Text.Neutral.Subdued, minWidth: 56 }}>
-                    {practice.code}
-                  </Text>
-                )}
+                {/* Siempre ocupa su ancho, para que los títulos queden alineados aunque no haya código. */}
+                <Text style={{ color: Colors.Text.Neutral.Subdued, minWidth: 56 }}>
+                  {practice.code ?? ""}
+                </Text>
                 <Text textStyle="base-emphasized">{practice.title}</Text>
                 <SeverityBadge severity={practice.severity} />
               </Flex>

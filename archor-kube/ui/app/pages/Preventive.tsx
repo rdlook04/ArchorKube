@@ -15,6 +15,7 @@ import {
   assistPreventivePrompt,
 } from "../queries/assist";
 import { workloadUrl } from "../queries/links";
+import { preventivePractices, useOpenGuide } from "../practices/flagged";
 
 /** Copia el prompt de Assist al portapapeles y avisa con un toast. */
 const copyAssistPrompt = (row: Record<string, unknown>) => {
@@ -34,7 +35,9 @@ const copyAssistPrompt = (row: Record<string, unknown>) => {
 };
 
 /** Menú por fila: Assist + copiar prompt + deep link al workload. */
-const preventiveRowActions = (row: Record<string, unknown>) => {
+const PreventiveRowMenu = ({ row }: { row: Record<string, unknown> }) => {
+  const openGuide = useOpenGuide();
+  const flagged = preventivePractices(row);
   const deploymentUrl = workloadUrl(row.deployment_id);
   return (
     <Menu>
@@ -44,6 +47,9 @@ const preventiveRowActions = (row: Record<string, unknown>) => {
         </Button>
       </Menu.Trigger>
       <Menu.Content>
+        <Menu.Item disabled={flagged.length === 0} onSelect={() => openGuide(flagged, row)}>
+          Why is this flagged?
+        </Menu.Item>
         <Menu.Intent payload={assistPreventivePayload(row)} options={ASSIST_INTENT_OPTIONS}>
           Preguntar a Dynatrace Assist
         </Menu.Intent>
@@ -187,7 +193,7 @@ export const Preventive = () => (
         minWidth: 120,
       },
     ]}
-    rowActions={preventiveRowActions}
+    rowActions={(row) => <PreventiveRowMenu row={row} />}
     summaryAside={(filters) => <PreventiveSignalChart filters={filters} />}
     detailFacets={[{ id: "senal", label: "Señal" }]}
     detailNoun="workloads con señales preventivas (OOM primero)"

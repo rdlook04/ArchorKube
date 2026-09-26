@@ -13,6 +13,7 @@ import { idleSummary, idleWorkloads } from "../queries";
 import { ASSIST_INTENT_OPTIONS, assistIdlePayload, assistIdlePrompt } from "../queries/assist";
 import { serviceUrl, workloadUrl } from "../queries/links";
 import { useExternalSend } from "../ai/useExternalSend";
+import { idlePractices, useOpenGuide } from "../practices/flagged";
 
 /** Copia el prompt de Assist al portapapeles y avisa con un toast. */
 const copyAssistPrompt = (row: Record<string, unknown>) => {
@@ -39,6 +40,8 @@ const copyAssistPrompt = (row: Record<string, unknown>) => {
  */
 const IdleRowMenu = ({ row }: { row: Record<string, unknown> }) => {
   const sendToOllama = useExternalSend(assistIdlePrompt, "Idle");
+  const openGuide = useOpenGuide();
+  const flagged = idlePractices(row);
   const serviceLink = serviceUrl(row.service_id);
   const deploymentUrl = workloadUrl(row.deployment_id);
   return (
@@ -49,6 +52,9 @@ const IdleRowMenu = ({ row }: { row: Record<string, unknown> }) => {
         </Button>
       </Menu.Trigger>
       <Menu.Content>
+        <Menu.Item disabled={flagged.length === 0} onSelect={() => openGuide(flagged, row)}>
+          Why is this flagged?
+        </Menu.Item>
         <Menu.Intent payload={assistIdlePayload(row)} options={ASSIST_INTENT_OPTIONS}>
           Preguntar a Dynatrace Assist
         </Menu.Intent>

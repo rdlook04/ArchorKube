@@ -15,6 +15,7 @@ import {
   assistRiskPrompt,
 } from "../queries/assist";
 import { workloadUrl } from "../queries/links";
+import { riskPractices, useOpenGuide } from "../practices/flagged";
 
 /** Copia el prompt de Assist al portapapeles y avisa con un toast. */
 const copyAssistPrompt = (row: Record<string, unknown>) => {
@@ -34,7 +35,9 @@ const copyAssistPrompt = (row: Record<string, unknown>) => {
 };
 
 /** Menú por fila: Assist + copiar prompt + deep link al workload. */
-const riskRowActions = (row: Record<string, unknown>) => {
+const RiskRowMenu = ({ row }: { row: Record<string, unknown> }) => {
+  const openGuide = useOpenGuide();
+  const flagged = riskPractices(row);
   const deploymentUrl = workloadUrl(row.deployment_id);
   return (
     <Menu>
@@ -44,6 +47,9 @@ const riskRowActions = (row: Record<string, unknown>) => {
         </Button>
       </Menu.Trigger>
       <Menu.Content>
+        <Menu.Item disabled={flagged.length === 0} onSelect={() => openGuide(flagged, row)}>
+          Why is this flagged?
+        </Menu.Item>
         <Menu.Intent payload={assistRiskPayload(row)} options={ASSIST_INTENT_OPTIONS}>
           Preguntar a Dynatrace Assist
         </Menu.Intent>
@@ -167,7 +173,7 @@ export const Risk = () => (
       { id: "liveness_gap", header: "Liveness", accessor: "liveness_gap", thresholds: gapThresholds },
       { id: "readiness_gap", header: "Readiness", accessor: "readiness_gap", thresholds: gapThresholds },
     ]}
-    rowActions={riskRowActions}
+    rowActions={(row) => <RiskRowMenu row={row} />}
     summaryAside={(filters) => <RiskLevelChart filters={filters} />}
     detailFacets={[{ id: "nivel", label: "Nivel" }]}
     detailNoun="workloads con riesgo de caída (score alto primero)"

@@ -15,6 +15,7 @@ import {
   assistOrphanPrompt,
 } from "../queries/assist";
 import { workloadUrl } from "../queries/links";
+import { orphanPractices, useOpenGuide } from "../practices/flagged";
 
 /** Copia el prompt de Assist al portapapeles y avisa con un toast. */
 const copyAssistPrompt = (row: Record<string, unknown>) => {
@@ -34,7 +35,9 @@ const copyAssistPrompt = (row: Record<string, unknown>) => {
 };
 
 /** Menú por fila: Assist + copiar prompt + deep link al workload. */
-const orphanRowActions = (row: Record<string, unknown>) => {
+const OrphanRowMenu = ({ row }: { row: Record<string, unknown> }) => {
+  const openGuide = useOpenGuide();
+  const flagged = orphanPractices(row);
   const deploymentUrl = workloadUrl(row.deployment_id);
   return (
     <Menu>
@@ -44,6 +47,9 @@ const orphanRowActions = (row: Record<string, unknown>) => {
         </Button>
       </Menu.Trigger>
       <Menu.Content>
+        <Menu.Item disabled={flagged.length === 0} onSelect={() => openGuide(flagged, row)}>
+          Why is this flagged?
+        </Menu.Item>
         <Menu.Intent payload={assistOrphanPayload(row)} options={ASSIST_INTENT_OPTIONS}>
           Preguntar a Dynatrace Assist
         </Menu.Intent>
@@ -127,7 +133,7 @@ export const Orphans = () => (
       { id: "replicas", header: "Réplicas", accessor: "replicas", columnType: "number" },
       { id: "motivo", header: "Motivo", accessor: "motivo", thresholds: motivoThresholds, minWidth: 160 },
     ]}
-    rowActions={orphanRowActions}
+    rowActions={(row) => <OrphanRowMenu row={row} />}
     summaryAside={(filters) => <OrphanReasonChart filters={filters} />}
     detailFacets={[{ id: "motivo", label: "Motivo" }]}
     detailNoun="workloads huérfanos (escalados a 0 primero)"

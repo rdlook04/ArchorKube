@@ -15,6 +15,7 @@ import {
   assistElasticityPrompt,
 } from "../queries/assist";
 import { workloadUrl } from "../queries/links";
+import { elasticityPractices, useOpenGuide } from "../practices/flagged";
 
 /** Copia el prompt de Assist al portapapeles y avisa con un toast. */
 const copyAssistPrompt = (row: Record<string, unknown>) => {
@@ -34,7 +35,9 @@ const copyAssistPrompt = (row: Record<string, unknown>) => {
 };
 
 /** Menú por fila: Assist + copiar prompt + deep link al workload. */
-const elasticityRowActions = (row: Record<string, unknown>) => {
+const ElasticityRowMenu = ({ row }: { row: Record<string, unknown> }) => {
+  const openGuide = useOpenGuide();
+  const flagged = elasticityPractices(row);
   const deploymentUrl = workloadUrl(row.deployment_id);
   return (
     <Menu>
@@ -44,6 +47,9 @@ const elasticityRowActions = (row: Record<string, unknown>) => {
         </Button>
       </Menu.Trigger>
       <Menu.Content>
+        <Menu.Item disabled={flagged.length === 0} onSelect={() => openGuide(flagged, row)}>
+          Why is this flagged?
+        </Menu.Item>
         <Menu.Intent payload={assistElasticityPayload(row)} options={ASSIST_INTENT_OPTIONS}>
           Preguntar a Dynatrace Assist
         </Menu.Intent>
@@ -131,7 +137,7 @@ export const Elasticity = () => (
       { id: "hpa_desired", header: "Deseadas", accessor: "hpa_desired", columnType: "number" },
       { id: "appCode", header: "Aplicación", accessor: "appCode" },
     ]}
-    rowActions={elasticityRowActions}
+    rowActions={(row) => <ElasticityRowMenu row={row} />}
     summaryAside={(filters) => <ElasticityChart filters={filters} />}
     detailFacets={[{ id: "elasticidad", label: "Elasticidad" }]}
     detailNoun="HPAs evaluados (bloqueados primero)"

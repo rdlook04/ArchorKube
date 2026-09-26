@@ -8,7 +8,8 @@ import { rangeWindow } from "./analysisWindow";
  * M1/M2 — Rightsizing CPU y Memoria (SPEC §4).
  * Query aportada por el usuario (2026-07-12): capacidad ociosa (slack) y
  * CPU throttling por pod, últimas 2 horas (timeframe por defecto de Grail).
- * Umbrales: slack >40% | throttle >25% | slack negativo = subdimensionado.
+ * Umbrales: entra a la lista con slack >40%, throttle >25% o slack negativo;
+ * se etiqueta SOBREAPROVISIONADO con slack >70% (entre 40% y 70% queda REVISAR).
  *
  * v2 (molde M3, 2026-07-13): usa el join tier/squad/tribu compartido
  * (`tierLookupJoin`) con filtros transversales, valoriza el slack ocioso en
