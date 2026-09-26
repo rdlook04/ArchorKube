@@ -14,7 +14,8 @@ import {
   Text,
 } from "@dynatrace/strato-components/typography";
 
-import { PRACTICES, SEVERITY_META } from "../practices/catalog";
+import { useT } from "../i18n";
+import { PRACTICES, SEVERITIES, practiceText, severityText } from "../practices/catalog";
 import type { Practice, Severity } from "../practices/catalog";
 
 /** Colores por severidad, con los tokens de Strato (mismo criterio que los módulos). */
@@ -27,21 +28,24 @@ const SEVERITY_COLORS: Record<Severity, { text: string; border: string }> = {
   traceability: { text: Colors.Text.Neutral.Default, border: Colors.Border.Neutral.Accent },
 };
 
-const SeverityBadge = ({ severity }: { severity: Severity }) => (
-  <span
-    style={{
-      color: SEVERITY_COLORS[severity].text,
-      border: `1px solid ${SEVERITY_COLORS[severity].border}`,
-      borderRadius: 999,
-      padding: "1px 8px",
-      fontSize: 12,
-      fontWeight: 600,
-      whiteSpace: "nowrap",
-    }}
-  >
-    {SEVERITY_META[severity].label}
-  </span>
-);
+const SeverityBadge = ({ severity }: { severity: Severity }) => {
+  const { lang } = useT();
+  return (
+    <span
+      style={{
+        color: SEVERITY_COLORS[severity].text,
+        border: `1px solid ${SEVERITY_COLORS[severity].border}`,
+        borderRadius: 999,
+        padding: "1px 8px",
+        fontSize: 12,
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {severityText(severity, lang).label}
+    </span>
+  );
+};
 
 const Block = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <Flex flexDirection="column" gap={4}>
@@ -50,48 +54,53 @@ const Block = ({ title, children }: { title: string; children: React.ReactNode }
   </Flex>
 );
 
-const PracticeBody = ({ practice }: { practice: Practice }) => (
-  <Flex flexDirection="column" gap={16} paddingTop={8} paddingBottom={16}>
-    <Block title="What it is">
-      <Paragraph>{practice.what}</Paragraph>
-    </Block>
-    <Block title="Why it matters">
-      <Paragraph>{practice.why}</Paragraph>
-    </Block>
-    <Block title="What happens without it">
-      <Paragraph>{practice.incident}</Paragraph>
-    </Block>
-    <Block title="How to comply">
-      <List ordered>
-        {practice.howTo.map((step) => (
-          <Text key={step}>{step}</Text>
-        ))}
-      </List>
-      <CodeSnippet language="yaml" showCopyAction>
-        {practice.yaml}
-      </CodeSnippet>
-    </Block>
-    {practice.caveat && (
-      <MessageContainer variant="primary">
-        <MessageContainer.Title>Worth knowing</MessageContainer.Title>
-        <MessageContainer.Description>{practice.caveat}</MessageContainer.Description>
-      </MessageContainer>
-    )}
-    <Flex gap={32} flexWrap="wrap">
-      <Block title="How ArchorKube measures it">
-        <Paragraph>
-          {practice.measuredBy.how}{" "}
-          <Link as={RouterLink} to={practice.measuredBy.route}>
-            See it in {practice.measuredBy.module}
-          </Link>
-        </Paragraph>
+const PracticeBody = ({ practice }: { practice: Practice }) => {
+  const { t, lang } = useT();
+  const text = practiceText(practice, lang);
+  const module = `${t.nav[practice.measuredBy.route].label} (${practice.measuredBy.code})`;
+  return (
+    <Flex flexDirection="column" gap={16} paddingTop={8} paddingBottom={16}>
+      <Block title={t.guide.whatItIs}>
+        <Paragraph>{text.what}</Paragraph>
       </Block>
-      <Block title="Who usually fixes it">
-        <Paragraph>{practice.owner}</Paragraph>
+      <Block title={t.guide.whyItMatters}>
+        <Paragraph>{text.why}</Paragraph>
       </Block>
+      <Block title={t.guide.withoutIt}>
+        <Paragraph>{text.incident}</Paragraph>
+      </Block>
+      <Block title={t.guide.howToComply}>
+        <List ordered>
+          {text.howTo.map((step) => (
+            <Text key={step}>{step}</Text>
+          ))}
+        </List>
+        <CodeSnippet language="yaml" showCopyAction>
+          {practice.yaml}
+        </CodeSnippet>
+      </Block>
+      {text.caveat && (
+        <MessageContainer variant="primary">
+          <MessageContainer.Title>{t.guide.worthKnowing}</MessageContainer.Title>
+          <MessageContainer.Description>{text.caveat}</MessageContainer.Description>
+        </MessageContainer>
+      )}
+      <Flex gap={32} flexWrap="wrap">
+        <Block title={t.guide.howMeasured}>
+          <Paragraph>
+            {text.how}{" "}
+            <Link as={RouterLink} to={practice.measuredBy.route}>
+              {t.guide.seeItIn(module)}
+            </Link>
+          </Paragraph>
+        </Block>
+        <Block title={t.guide.whoFixes}>
+          <Paragraph>{text.owner}</Paragraph>
+        </Block>
+      </Flex>
     </Flex>
-  </Flex>
-);
+  );
+};
 
 /**
  * M14 — Guía de buenas prácticas.
@@ -104,6 +113,7 @@ const PracticeBody = ({ practice }: { practice: Practice }) => (
  * workload: es a donde lleva "Why is this flagged?" desde cada fila.
  */
 export const Guide = () => {
+  const { t, lang } = useT();
   const [params] = useSearchParams();
   const focus = (params.get("focus") ?? "")
     .split(",")
@@ -128,20 +138,20 @@ export const Guide = () => {
     <Flex flexDirection="column" gap={24} padding={32} style={{ maxWidth: 960 }}>
       <div ref={top} />
       <Flex flexDirection="column" gap={8}>
-        <Heading level={1}>Kubernetes best practices</Heading>
+        <Heading level={1}>{t.guide.title}</Heading>
         <Paragraph>
-          The other tabs tell you <Strong>what</Strong> is out of standard. This one explains{" "}
-          <Strong>why each rule exists</Strong> and <Strong>how to comply</Strong>, in plain words.
-          A rule people understand gets fixed; a red cell nobody can explain gets ignored.
+          {/* Las partes impares van en negrita: "qué", "por qué existe" y "cómo cumplirla". */}
+          {t.guide
+            .intro(t.guide.introWhat, t.guide.introWhy, t.guide.introHow)
+            .map((part, i) => (i % 2 === 1 ? <Strong key={i}>{part}</Strong> : part))}
         </Paragraph>
       </Flex>
 
       {workload && focus.length > 0 && (
         <MessageContainer variant="warning">
-          <MessageContainer.Title>Why is {workload} flagged?</MessageContainer.Title>
+          <MessageContainer.Title>{t.guide.flaggedTitle(workload)}</MessageContainer.Title>
           <MessageContainer.Description>
-            It doesn&apos;t meet {focus.length === 1 ? "this practice" : "these practices"}. They
-            are open below, ordered by what to fix first.
+            {t.guide.flaggedBody(focus.length)}
           </MessageContainer.Description>
         </MessageContainer>
       )}
@@ -155,13 +165,13 @@ export const Guide = () => {
         }}
       >
         <Flex flexDirection="column" gap={8}>
-          <Text textStyle="base-emphasized">How to read the severity</Text>
-          {(Object.keys(SEVERITY_META) as Severity[]).map((severity) => (
+          <Text textStyle="base-emphasized">{t.guide.severityLegend}</Text>
+          {SEVERITIES.map((severity) => (
             <Flex key={severity} gap={12} alignItems="center">
               <span style={{ minWidth: 104 }}>
                 <SeverityBadge severity={severity} />
               </span>
-              <Text>{SEVERITY_META[severity].meaning}</Text>
+              <Text>{severityText(severity, lang).meaning}</Text>
             </Flex>
           ))}
         </Flex>
@@ -177,7 +187,7 @@ export const Guide = () => {
                 <Text style={{ color: Colors.Text.Neutral.Subdued, minWidth: 56 }}>
                   {practice.code ?? ""}
                 </Text>
-                <Text textStyle="base-emphasized">{practice.title}</Text>
+                <Text textStyle="base-emphasized">{practiceText(practice, lang).title}</Text>
                 <SeverityBadge severity={practice.severity} />
               </Flex>
             </Accordion.SectionLabel>

@@ -6,9 +6,10 @@
  * flagged?" de cada fila y, en la Fase 5, los prompts de IA. Si una práctica
  * cambia, cambia aquí y en ningún otro lado.
  *
- * Escrito en inglés (decisión D1: el contenido nuevo no se traduce dos veces)
- * y para gente que no administra Kubernetes: cada término técnico se explica
- * la primera vez que aparece.
+ * Bilingüe: el inglés vive aquí, junto a la estructura; el español en
+ * `catalog.es.ts`, con una entrada obligatoria por práctica. Escrito para gente
+ * que no administra Kubernetes: cada término técnico se explica la primera vez
+ * que aparece.
  *
  * Primera tanda: las 8 SPEC que mide M12 Cumplimiento. Segunda tanda: las
  * reglas de criterio de los otros módulos (réplicas, HPA, estabilidad,
@@ -16,11 +17,31 @@
  * por severidad y, dentro de cada una, por prioridad de remediación.
  */
 
+import type { Lang } from "../i18n";
+import { PRACTICES_ES, SEVERITY_ES } from "./catalog.es";
+
 export type Severity = "critical" | "high" | "medium" | "cost" | "security" | "traceability";
+
+/** Los ids son un tipo cerrado para que cada traducción sea obligatoria. */
+export type PracticeId =
+  | "readiness-probe"
+  | "liveness-probe"
+  | "multiple-replicas"
+  | "memory-limit"
+  | "memory-request"
+  | "autoscaler-headroom"
+  | "stable-containers"
+  | "cpu-limit"
+  | "cpu-request"
+  | "right-sized-requests"
+  | "no-idle-workloads"
+  | "non-root"
+  | "helm-managed"
+  | "owned-workloads";
 
 export interface Practice {
   /** Estable: se usa en la URL (`/guide?focus=…`). */
-  id: string;
+  id: PracticeId;
   /** Código del estándar que mide la app, si lo hay. */
   code?: string;
   title: string;
@@ -40,14 +61,35 @@ export interface Practice {
   /** Quién suele corregirla. */
   owner: string;
   measuredBy: {
-    route: string;
-    module: string;
+    /** Ruta del módulo; su nombre visible sale del diccionario de navegación. */
+    route:
+      | "/compliance"
+      | "/risk"
+      | "/elasticity"
+      | "/rightsizing"
+      | "/idle"
+      | "/orphans"
+      | "/preventive";
+    /** Código del módulo (M12…), igual en los dos idiomas. */
+    code: string;
     /** Cómo la detecta la app, para que el hallazgo sea verificable. */
     how: string;
   };
 }
 
-export const SEVERITY_META: Record<Severity, { label: string; meaning: string; order: number }> = {
+/** El texto traducible de una práctica (lo demás es igual en los dos idiomas). */
+export interface PracticeText {
+  title: string;
+  what: string;
+  why: string;
+  incident: string;
+  howTo: string[];
+  caveat?: string;
+  owner: string;
+  how: string;
+}
+
+const SEVERITY_EN: Record<Severity, { label: string; meaning: string; order: number }> = {
   critical: {
     label: "Critical",
     meaning: "Directly causes outages. Fix first.",
@@ -80,13 +122,20 @@ export const SEVERITY_META: Record<Severity, { label: string; meaning: string; o
   },
 };
 
-const M12 = { route: "/compliance", module: "Compliance (M12)" };
-const RISK = { route: "/risk", module: "Risk (M5)" };
-const ELASTICITY = { route: "/elasticity", module: "Elasticity (M5)" };
-const RIGHTSIZING = { route: "/rightsizing", module: "Rightsizing (M1/M2)" };
-const IDLE = { route: "/idle", module: "Idle (M3)" };
-const ORPHANS = { route: "/orphans", module: "Orphans (M6)" };
-const PREVENTIVE = { route: "/preventive", module: "Preventive (M8)" };
+/** Orden de las severidades en la leyenda. */
+export const SEVERITIES = Object.keys(SEVERITY_EN) as Severity[];
+
+/** Etiqueta y significado de una severidad en el idioma pedido. */
+export const severityText = (severity: Severity, lang: Lang) =>
+  lang === "es" ? SEVERITY_ES[severity] : SEVERITY_EN[severity];
+
+const M12 = { route: "/compliance", code: "M12" } as const;
+const RISK = { route: "/risk", code: "M5" } as const;
+const ELASTICITY = { route: "/elasticity", code: "M5" } as const;
+const RIGHTSIZING = { route: "/rightsizing", code: "M1/M2" } as const;
+const IDLE = { route: "/idle", code: "M3" } as const;
+const ORPHANS = { route: "/orphans", code: "M6" } as const;
+const PREVENTIVE = { route: "/preventive", code: "M8" } as const;
 
 export const PRACTICES: Practice[] = [
   {
@@ -488,6 +537,21 @@ kubectl scale deployment <workload> --replicas=0 -n <namespace>`,
     },
   },
 ];
+
+/** El texto de una práctica en el idioma pedido. */
+export const practiceText = (practice: Practice, lang: Lang): PracticeText =>
+  lang === "es"
+    ? PRACTICES_ES[practice.id]
+    : {
+        title: practice.title,
+        what: practice.what,
+        why: practice.why,
+        incident: practice.incident,
+        howTo: practice.howTo,
+        caveat: practice.caveat,
+        owner: practice.owner,
+        how: practice.measuredBy.how,
+      };
 
 /** Prácticas por código del estándar ("SPEC06" → readiness-probe). */
 export const practiceByCode = (code: string): Practice | undefined =>
