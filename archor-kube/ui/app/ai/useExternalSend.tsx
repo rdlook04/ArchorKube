@@ -17,26 +17,23 @@ import type { BridgeResult } from "./ollamaBridge";
 import { redactForExternal } from "./redact";
 import type { DataMode } from "./redact";
 import { useAiSettings } from "./settings";
+import { useT } from "../i18n";
+import type { UiText } from "../i18n/ui";
 
 type Row = Record<string, unknown>;
 
-const DESTINATION_COPY: Record<Destination, { title: string; action: string; target: string }> = {
-  ollama: { title: "Send to local Ollama", action: "Send", target: "your local Ollama" },
-  clipboard: {
-    title: "Copy for another AI",
-    action: "Copy to clipboard",
-    target: "the clipboard, to paste in Claude, Gemini, ChatGPT or any other AI",
-  },
-};
+type SendText = UiText["send"];
 
-const notifyBridge = (result: BridgeResult) => {
+const destinationCopy = (t: SendText, destination: Destination) =>
+  destination === "ollama"
+    ? { title: t.ollamaTitle, action: t.ollamaAction, target: t.ollamaTarget }
+    : { title: t.clipboardTitle, action: t.clipboardAction, target: t.clipboardTarget };
+
+const notifyBridge = (t: SendText) => (result: BridgeResult) => {
   if (result === "sent") return;
   showToast({
-    title: result === "blocked" ? "The browser blocked the window" : "The bridge did not answer",
-    message:
-      result === "blocked"
-        ? "Allow pop-ups for this page and try again."
-        : "Start it with: python -m http.server 8765 (in tools/ollama-bridge).",
+    title: result === "blocked" ? t.blocked : t.noAnswer,
+    message: result === "blocked" ? t.blockedBody : t.noAnswerBody,
     type: "warning",
     lifespan: 6000,
   });
@@ -64,6 +61,8 @@ const ExternalSendContext = createContext<OpenPreview>(() => undefined);
  */
 export const ExternalSendProvider = ({ children }: { children: ReactNode }) => {
   const [preview, setPreview] = useState<Preview | null>(null);
+  const { t: ui } = useT();
+  const t = ui.send;
 
   const open = useCallback<OpenPreview>((p) => setPreview({ ...p, text: p.original }), []);
   const close = () => setPreview(null);
@@ -72,19 +71,19 @@ export const ExternalSendProvider = ({ children }: { children: ReactNode }) => {
     if (!preview) return;
     const { destination, module, mode, original, text, replaced } = preview;
     if (destination === "ollama") {
-      void sendToOllamaBridge(text, module).then(notifyBridge);
+      void sendToOllamaBridge(text, module).then(notifyBridge(t));
     } else {
       navigator.clipboard
         .writeText(text)
         .then(() =>
           showToast({
-            title: "Copied",
-            message: "Paste it in any AI. Only what you saw in the preview was copied.",
+            title: t.copied,
+            message: t.copiedBody,
             type: "success",
             lifespan: 4000,
           }),
         )
-        .catch(() => showToast({ title: "Could not copy", type: "critical", lifespan: 4000 }));
+        .catch(() => showToast({ title: t.copyFailed, type: "critical", lifespan: 4000 }));
     }
     recordSend({
       destination,
@@ -97,7 +96,7 @@ export const ExternalSendProvider = ({ children }: { children: ReactNode }) => {
     close();
   };
 
-  const copy = preview ? DESTINATION_COPY[preview.destination] : null;
+  const copy = preview ? destinationCopy(t, preview.destination) : null;
 
   return (
     <ExternalSendContext.Provider value={open}>
@@ -109,7 +108,7 @@ export const ExternalSendProvider = ({ children }: { children: ReactNode }) => {
         title={copy?.title ?? ""}
         footer={
           <Flex justifyContent="flex-end" gap={8} width="100%">
-            <Button onClick={close}>Cancel</Button>
+            <Button onClick={close}>{t.cancel}</Button>
             <Button
               variant="emphasized"
               color={preview?.mode === "real" ? "warning" : "primary"}
@@ -125,21 +124,17 @@ export const ExternalSendProvider = ({ children }: { children: ReactNode }) => {
           <Flex flexDirection="column" gap={12}>
             {preview.mode === "real" && (
               <MessageContainer variant="warning">
-                <MessageContainer.Title>Real Kubernetes names</MessageContainer.Title>
-                <MessageContainer.Description>
-                  This text has the real namespace, workload, pod and container names. To send
-                  placeholders instead, change it in Settings.
-                </MessageContainer.Description>
+                <MessageContainer.Title>{t.realTitle}</MessageContainer.Title>
+                <MessageContainer.Description>{t.realBody}</MessageContainer.Description>
               </MessageContainer>
             )}
             <Paragraph>
-              This is <Strong>exactly</Strong> what goes to {copy.target}. You can edit it before it
-              leaves.
+              {t.exactlyLead} <Strong>{t.exactlyStrong}</Strong>
+              {t.exactlyRest(copy.target)}
             </Paragraph>
             {preview.replaced.length > 0 && (
               <Text textStyle="small" style={{ color: Colors.Text.Neutral.Subdued }}>
-                Removed or replaced: {preview.replaced.join(", ")}. Never sent: cluster name,
-                owners, costs, tenant links, IPs and emails.
+                {t.removed(preview.replaced.join(", "))}
               </Text>
             )}
             <TextArea

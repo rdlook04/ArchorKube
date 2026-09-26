@@ -3,26 +3,33 @@ import type { ReactNode } from "react";
 
 import { stateClient } from "@dynatrace-sdk/client-state";
 
+import type { Lang } from "../i18n";
 import type { DataMode } from "./redact";
 
 /**
- * Preferencias del envío a IA, por usuario (user app state): siguen al usuario
- * entre navegadores y nadie más las ve. La URL del puente NO va aquí, vive en
- * localStorage porque depende de la máquina.
+ * Preferencias por usuario (user app state): el modo de datos del envío a IA y
+ * el idioma. Siguen al usuario entre navegadores y nadie más las ve. La clave
+ * conserva su nombre original para no perder lo ya guardado. La URL del
+ * puente NO va aquí, vive en localStorage porque depende de la máquina.
  */
 export interface AiSettings {
   dataMode: DataMode;
+  /** Idioma de la interfaz; inglés salvo que el usuario elija español. */
+  language: Lang;
 }
 
 const STATE_KEY = "archorkube-ai-settings-v1";
 
 /** Si no se puede leer la preferencia, se asume la opción que no expone nada. */
-const DEFAULTS: AiSettings = { dataMode: "placeholders" };
+const DEFAULTS: AiSettings = { dataMode: "placeholders", language: "en" };
 
 const parse = (raw: string | undefined): AiSettings => {
   try {
     const value = JSON.parse(raw ?? "{}") as Partial<AiSettings>;
-    return { dataMode: value.dataMode === "real" ? "real" : "placeholders" };
+    return {
+      dataMode: value.dataMode === "real" ? "real" : "placeholders",
+      language: value.language === "es" ? "es" : "en",
+    };
   } catch {
     return DEFAULTS;
   }

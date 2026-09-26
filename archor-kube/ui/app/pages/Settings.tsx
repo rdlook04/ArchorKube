@@ -18,6 +18,8 @@ import {
 import { DEFAULT_BRIDGE_URL, getBridgeUrl, setBridgeUrl } from "../ai/ollamaBridge";
 import type { DataMode } from "../ai/redact";
 import { useAiSettings } from "../ai/settings";
+import { useT } from "../i18n";
+import type { Lang } from "../i18n";
 
 const BRIDGE_README = "https://github.com/rdlook04/ArchorKube/tree/master/tools/ollama-bridge";
 
@@ -44,46 +46,68 @@ const Hint = ({ children }: { children: React.ReactNode }) => (
 
 export const Settings = () => {
   const { settings, loaded, save } = useAiSettings();
+  const { t } = useT();
   const [bridgeUrl, setBridgeUrlDraft] = useState(getBridgeUrl);
 
-  const changeMode = (value: string) => {
-    const dataMode: DataMode = value === "real" ? "real" : "placeholders";
-    save({ ...settings, dataMode })
-      .then(() => showToast({ title: "Saved", type: "success", lifespan: 2500 }))
+  const persist = (next: typeof settings, failHint?: string) =>
+    save(next)
+      .then(() => showToast({ title: t.settings.saved, type: "success", lifespan: 2500 }))
       .catch(() =>
         showToast({
-          title: "Could not save the setting",
-          message: "Placeholders stay on until it can be saved.",
+          title: t.settings.saveFailed,
+          message: failHint,
           type: "critical",
           lifespan: 5000,
         }),
       );
+
+  const changeMode = (value: string) => {
+    const dataMode: DataMode = value === "real" ? "real" : "placeholders";
+    void persist({ ...settings, dataMode }, t.settings.modeSaveFailedHint);
+  };
+
+  const changeLanguage = (value: string) => {
+    const language: Lang = value === "es" ? "es" : "en";
+    void persist({ ...settings, language });
   };
 
   const saveBridgeUrl = () => {
     if (!setBridgeUrl(bridgeUrl)) {
-      showToast({ title: "That is not an http(s) URL", type: "critical", lifespan: 4000 });
+      showToast({ title: t.settings.bridgeInvalid, type: "critical", lifespan: 4000 });
       return;
     }
     setBridgeUrlDraft(getBridgeUrl());
-    showToast({ title: "Bridge URL saved in this browser", type: "success", lifespan: 2500 });
+    showToast({ title: t.settings.bridgeSaved, type: "success", lifespan: 2500 });
   };
 
   return (
     <Flex flexDirection="column" gap={24} padding={32} style={{ maxWidth: 820 }}>
-      <Heading level={1}>Settings</Heading>
+      <Heading level={1}>{t.settings.title}</Heading>
 
       <Section>
-        <Heading level={2}>Sending to AI</Heading>
+        <Heading level={2}>{t.settings.languageTitle}</Heading>
+        {/* Los nombres de idioma van siempre en su propio idioma: se reconocen igual desde cualquiera. */}
+        <RadioGroup
+          name="language"
+          value={settings.language}
+          onChange={changeLanguage}
+          disabled={!loaded}
+        >
+          <Radio value="en">English</Radio>
+          <Radio value="es">Español</Radio>
+        </RadioGroup>
+        <Hint>{t.settings.languageHint}</Hint>
+      </Section>
+
+      <Section>
+        <Heading level={2}>{t.settings.aiTitle}</Heading>
         <Paragraph>
-          <Strong>Dynatrace Assist</Strong> always gets the full finding: it runs inside your
-          tenant. Every AI outside Dynatrace (your local Ollama, or Claude, Gemini, ChatGPT and
-          others through the clipboard) gets the finding through a data filter first, and you see a
-          preview of exactly what leaves before it does.
+          <Strong>{t.settings.aiIntroStrong}</Strong>
+          {t.settings.aiIntroRest}
         </Paragraph>
 
         <FormField>
-          <Label>How Kubernetes names leave Dynatrace</Label>
+          <Label>{t.settings.modeLabel}</Label>
           <RadioGroup
             name="data-mode"
             value={settings.dataMode}
@@ -92,20 +116,14 @@ export const Settings = () => {
           >
             <Radio value="placeholders">
               <Flex flexDirection="column" gap={2}>
-                <Text>Placeholders (recommended)</Text>
-                <Hint>
-                  Names go out as $NS, $WL, $POD, $CONTAINER. The AI writes commands with those
-                  variables and you fill them in your terminal.
-                </Hint>
+                <Text>{t.settings.modePlaceholders}</Text>
+                <Hint>{t.settings.modePlaceholdersHint}</Hint>
               </Flex>
             </Radio>
             <Radio value="real">
               <Flex flexDirection="column" gap={2}>
-                <Text>Real Kubernetes names</Text>
-                <Hint>
-                  Namespace, workload, pod and container go out as they are. The preview warns you
-                  every time.
-                </Hint>
+                <Text>{t.settings.modeReal}</Text>
+                <Hint>{t.settings.modeRealHint}</Hint>
               </Flex>
             </Radio>
           </RadioGroup>
@@ -118,27 +136,24 @@ export const Settings = () => {
             borderRadius: Borders.Radius.Container.Default,
           }}
         >
-          <Text textStyle="base-emphasized">Never leaves, in either mode</Text>
+          <Text textStyle="base-emphasized">{t.settings.neverLeaves}</Text>
           <List>
-            <Text>The cluster name (sent as &lt;kube-context&gt;)</Text>
-            <Text>Squad, tribe and app code</Text>
-            <Text>Costs in USD</Text>
-            <Text>Tenant URLs and entity IDs</Text>
-            <Text>IP addresses and emails found in log messages</Text>
+            {t.settings.neverLeavesItems.map((item) => (
+              <Text key={item}>{item}</Text>
+            ))}
           </List>
         </div>
-        <Hint>Saved for your user in this tenant. Nobody else sees it.</Hint>
+        <Hint>{t.settings.savedForUser}</Hint>
       </Section>
 
       <Section>
-        <Heading level={2}>Local Ollama bridge</Heading>
+        <Heading level={2}>{t.settings.bridgeTitle}</Heading>
         <Paragraph>
-          Dynatrace apps can&apos;t connect to your machine, so ArchorKube opens a small page that
-          runs locally and talks to Ollama for you.{" "}
-          <ExternalLink href={BRIDGE_README}>How to start it</ExternalLink>
+          {t.settings.bridgeIntro}{" "}
+          <ExternalLink href={BRIDGE_README}>{t.settings.bridgeHowTo}</ExternalLink>
         </Paragraph>
         <FormField>
-          <Label>Bridge URL</Label>
+          <Label>{t.settings.bridgeUrl}</Label>
           <Flex gap={8}>
             <TextInput
               value={bridgeUrl}
@@ -147,11 +162,11 @@ export const Settings = () => {
               style={{ flex: 1 }}
             />
             <Button variant="emphasized" onClick={saveBridgeUrl}>
-              Save
+              {t.settings.save}
             </Button>
           </Flex>
         </FormField>
-        <Hint>Stored only in this browser. Leave it empty to use {DEFAULT_BRIDGE_URL}.</Hint>
+        <Hint>{t.settings.bridgeHint(DEFAULT_BRIDGE_URL)}</Hint>
       </Section>
     </Flex>
   );

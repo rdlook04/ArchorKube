@@ -6,6 +6,7 @@ import { Menu } from "@dynatrace/strato-components/navigation";
 import { DotMenuIcon } from "@dynatrace/strato-icons";
 
 import { useExternalSend } from "../ai/useExternalSend";
+import { useT } from "../i18n";
 import { useOpenGuide } from "../practices/flagged";
 import { ASSIST_INTENT_OPTIONS } from "../queries/assist";
 
@@ -44,6 +45,7 @@ interface RowMenuProps {
  * copiar la fila completa al portapapeles era una salida sin filtro.
  */
 export const RowMenu = ({ row, module, prompt, assistPayload, practices, links }: RowMenuProps) => {
+  const { t } = useT();
   const openGuide = useOpenGuide();
   const sendExternal = useExternalSend(prompt, module);
   const flagged = practices ? practices(row) : null;
@@ -51,21 +53,23 @@ export const RowMenu = ({ row, module, prompt, assistPayload, practices, links }
   return (
     <Menu>
       <Menu.Trigger>
-        <Button aria-label="Row actions">
+        <Button aria-label={t.rowMenu.ariaLabel}>
           <DotMenuIcon />
         </Button>
       </Menu.Trigger>
       <Menu.Content>
         {flagged && (
           <Menu.Item disabled={flagged.length === 0} onSelect={() => openGuide(flagged, row)}>
-            Why is this flagged?
+            {t.rowMenu.whyFlagged}
           </Menu.Item>
         )}
         <Menu.Intent payload={assistPayload(row)} options={ASSIST_INTENT_OPTIONS}>
-          Ask Dynatrace Assist
+          {t.rowMenu.askAssist}
         </Menu.Intent>
-        <Menu.Item onSelect={() => sendExternal(row, "ollama")}>Send to local Ollama…</Menu.Item>
-        <Menu.Item onSelect={() => sendExternal(row, "clipboard")}>Copy for another AI…</Menu.Item>
+        <Menu.Item onSelect={() => sendExternal(row, "ollama")}>{t.rowMenu.sendOllama}</Menu.Item>
+        <Menu.Item onSelect={() => sendExternal(row, "clipboard")}>
+          {t.rowMenu.copyForAi}
+        </Menu.Item>
         {links?.map((link) => (
           <Menu.Link
             key={link.label}

@@ -9,6 +9,8 @@ import { Checkbox } from "@dynatrace/strato-components/forms";
 import { ExternalLink, Paragraph, Strong, Text } from "@dynatrace/strato-components/typography";
 import { WarningIcon } from "@dynatrace/strato-icons";
 
+import { useT } from "../i18n";
+
 const REPO_URL = "https://github.com/rdlook04/ArchorKube";
 
 /**
@@ -53,6 +55,7 @@ interface CommunityNoticeProps {
  */
 export const CommunityNotice = ({ show, onClose }: CommunityNoticeProps) => {
   const [dontShowAgain, setDontShowAgain] = useState(isNoticeDismissed);
+  const { t } = useT();
 
   const close = () => {
     saveDismissed(dontShowAgain);
@@ -74,30 +77,30 @@ export const CommunityNotice = ({ show, onClose }: CommunityNoticeProps) => {
               textStyle="small-emphasized"
               style={{ color: Colors.Text.Warning.Default, letterSpacing: "0.08em" }}
             >
-              IMPORTANT NOTICE
+              {t.notice.eyebrow}
             </Text>
-            <span>Unofficial community app</span>
+            <span>{t.notice.title}</span>
           </Flex>
         </Flex>
       }
       footer={
         <Flex flexDirection="column" gap={16} width="100%">
           <Checkbox name="dont-show-again" value={dontShowAgain} onChange={setDontShowAgain}>
-            Don&apos;t show this again
+            {t.notice.dontShow}
           </Checkbox>
           <Button variant="emphasized" color="warning" width="full" onClick={close}>
-            Continue
+            {t.notice.continue}
           </Button>
         </Flex>
       }
     >
       <Flex flexDirection="column" gap={16}>
         <Paragraph>
-          ArchorKube is <Strong>not an official Dynatrace app</Strong>, and you can&apos;t open a
-          Dynatrace support ticket for it.
+          {t.notice.notOfficialLead} <Strong>{t.notice.notOfficialStrong}</Strong>
+          {t.notice.notOfficialRest}
         </Paragraph>
         <Flex flexDirection="column" gap={8}>
-          <Paragraph>You can report issues on the GitHub repository:</Paragraph>
+          <Paragraph>{t.notice.reportIssues}</Paragraph>
           <div
             style={{
               alignSelf: "flex-start",
@@ -110,10 +113,9 @@ export const CommunityNotice = ({ show, onClose }: CommunityNoticeProps) => {
             <ExternalLink href={REPO_URL}>github.com/rdlook04/ArchorKube</ExternalLink>
           </div>
         </Flex>
-        <Paragraph>Feel free to fork it for your own use.</Paragraph>
+        <Paragraph>{t.notice.fork}</Paragraph>
         <Paragraph style={{ color: Colors.Text.Neutral.Subdued }}>
-          ArchorKube only reads data from your tenant. When you send a finding to an AI outside
-          Dynatrace, only what you see in the preview leaves, filtered first.
+          {t.notice.data}
         </Paragraph>
       </Flex>
     </Modal>
