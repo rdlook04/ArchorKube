@@ -122,7 +122,7 @@ Cuatro archivos locales (tres de configuración más `.env`), y ninguno más —
 | `ui/app/config/site.ts` | `site.ts.example` | Namespaces excluidos, precios de instancias |
 | `archor-kube/.env` | `.env.example` | A qué tenant apunta |
 
-Ninguno se commitea. Cualquier mejora fuera de estos tres archivos vale para todo el mundo que use el repo — esa es la disciplina que mantiene la app genérica en vez de ir acumulando supuestos de una sola organización.
+Ninguno se commitea. Cualquier mejora fuera de estos archivos vale para todo el mundo que use el repo — esa es la disciplina que mantiene la app genérica en vez de ir acumulando supuestos de una sola organización.
 
 ---
 

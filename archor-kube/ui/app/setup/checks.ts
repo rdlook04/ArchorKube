@@ -6,7 +6,7 @@ import {
   INSTANCE_HOURLY_USD,
   OWNERSHIP_KEYS,
 } from "../config/site";
-import { EXTRA_FILTERS } from "../config/extraFilters";
+import { EXTRA_FILTERS, INVALID_EXTRA_FILTERS } from "../config/extraFilters";
 import { ownership } from "../ownership";
 import { excludedNamespacesClause } from "../queries/namespaces";
 import type { Records } from "./runQuery";
@@ -108,6 +108,13 @@ const VALUE_SHAPE: Partial<Record<keyof typeof OWNERSHIP_KEYS, RegExp>> = {
 };
 
 /**
+ * Valores que no son un nombre de equipo ni de dominio aunque la clave se
+ * llame "owner" o "team": emails, identificadores largos, números sueltos.
+ * Una clave con valores así no se propone como squad ni como tribu.
+ */
+const NOT_A_NAME = /@|^[0-9a-f-]{16,}$|^\d+$/i;
+
+/**
  * Claves que suelen servir como filtro sin ser dueño ni tier: criticidad de
  * negocio, centro de costo, producto, entorno.
  */
@@ -162,8 +169,10 @@ const evaluateLabelDiscovery = (records: Records): CheckResult => {
     const numeric = (key: string) =>
       values(key).length > 0 && values(key).every((v) => /^\d+$/.test(v));
     const shape = VALUE_SHAPE[field];
+    const namesOnly = field === "squad" || field === "tribu";
     const fits = (key: string) =>
       (!shape || (values(key).length > 0 && values(key).every((v) => shape.test(v)))) &&
+      (!namesOnly || !values(key).some((v) => NOT_A_NAME.test(v))) &&
       (values(configured).length === 0 || numeric(configured) === numeric(key));
     const best = [...coverage.entries()]
       .filter(([k]) => k !== configured && FIELD_HINTS[field].test(k) && fits(k))
@@ -177,6 +186,15 @@ const evaluateLabelDiscovery = (records: Records): CheckResult => {
     } else {
       items.push(`${field}: "${configured}" is on ${configuredPct}% of workloads.`);
     }
+  }
+
+  // Filtros declarados que la app descartó (id con guion, sin clave): sin este
+  // aviso desaparecen sin ningún error.
+  for (const filter of INVALID_EXTRA_FILTERS) {
+    suggestions++;
+    items.push(
+      `Optional filter "${filter.label}" was ignored: its id "${filter.id}" must use only letters and numbers (no dashes), and it needs a key.`,
+    );
   }
 
   // Filtros opcionales ya configurados: si la clave no existe, el selector se
@@ -219,7 +237,7 @@ const evaluateLabelDiscovery = (records: Records): CheckResult => {
     status: suggestions > 0 ? "warn" : "ok",
     detail:
       suggestions > 0
-        ? `Your workloads carry ownership under different label keys than the ones configured (${total} workloads scanned).`
+        ? `Some ownership keys or optional filters need a change (${total} workloads scanned).`
         : `The configured label keys match what your workloads carry (${total} workloads scanned).`,
     items,
   };

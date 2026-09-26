@@ -21,7 +21,7 @@ The short version:
 - **Deploying is the person's call.** It installs an app in their tenant and asks them to consent scopes. Prepare everything, then ask.
 - **Don't change a mapping just because another label covers more workloads.** Compare the values first: a tier label with `1, 2, 3` and a "criticality" label with business names are different data, even if the second one is more common. A tier must look like a tier (`1, 2, 3`, `t1`, `tier-2`). Offer the other key as an optional filter instead.
 - **A key with a single value is useless as a filter** (an `environment` that is always `prod`). Don't add it.
-- **Ignore the `npx dt-app update` banner** that builds print. Updating changes dependencies; that's the maintainers' decision, not part of a setup.
+- **Don't change dependencies.** Ignore the `npx dt-app update` banner that builds print, and the `npm install` warnings about skipped install scripts and audit findings: don't run `dt-app update`, `npm audit fix` or approve install scripts. The build works as is; updating dependencies is the maintainers' decision, not part of a setup.
 
 ---
 
@@ -87,7 +87,15 @@ fetch dt.entity.cloud_application
 | limit 20
 ```
 
-Setup's *Ownership label keys and optional filters* check does both in one step.
+Setup's *Ownership label keys and optional filters* check does both in one step (it reads the raw labels and annotations and counts them in the app, so its numbers include annotations).
+
+**Namespace names (to decide exclusions).**
+
+```
+smartscapeNodes K8S_NAMESPACE
+| fields name, k8s.cluster.name
+| sort name asc
+```
 
 **Instance types (for prices).**
 
@@ -119,6 +127,10 @@ Owners are resolved **field by field** through a chain: the first provider that 
 
 The default chain (`manual → labels → namespace`) is a good start for most clusters, **once the excluded namespaces are settled**: with `namespaceProvider` in the chain, every namespace that isn't excluded counts as a team. A `monitoring` or `ingress-nginx` namespace left in shows up as a squad and makes ownership coverage look better than it is. Setup's *Namespaces that aren't teams are excluded* check lists them.
 
+Until the person has confirmed the exclusions, leave `namespaceProvider` out of the chain (`manualProvider(), labelsProvider`): workloads without a label stay as *(no owner)*, which keeps the gap visible. Add it back as the last link once exclusions are settled, and only if teams really own their namespaces.
+
+Setup rates ownership coverage by the share of workloads with a squad: 80% or more is OK, 40–79% needs attention, under 40% is *Not working*.
+
 ### Fill `config/site.ts`
 
 | Setting | What to put | From |
@@ -127,7 +139,7 @@ The default chain (`manual → labels → namespace`) is a good start for most c
 | `EXTRA_FILTERS` | Other label keys people want to filter by (business criticality, cost center, product, environment) | Discovery query 1: keys that aren't owners |
 | `EXCLUDED_NAMESPACES_EXACT` / `_CONTAINING` | System and platform namespaces that aren't workloads of any team. Prefer exact names: a substring like `system` also drops a team namespace called `payment-system` | Ask the person; Setup flags platform namespaces left in and team namespaces dropped by a substring |
 | `INSTANCE_HOURLY_USD` | Hourly price for each instance type found | Discovery query 2 + the person's pricing (list price or contract) |
-| `PRICING_SOURCE` | Where the prices came from, in words | The person |
+| `PRICING_SOURCE` | Where the prices came from, in words (it shows next to the numbers). Without prices, leave the default: it says no source is configured | The person |
 
 `EXTRA_FILTERS` example:
 
@@ -138,7 +150,7 @@ export const EXTRA_FILTERS: ExtraFilter[] = [
 ];
 ```
 
-A filter whose key doesn't exist in the tenant is hidden, so a wrong key fails quietly: Setup tells you.
+Use the key exactly as your workloads carry it (the example keys are only examples). The `id` must be letters and numbers only: `costcenter`, not `cost-center`. A filter with an invalid `id` is ignored and a filter whose key doesn't exist is hidden; both fail quietly in the UI, and Setup tells you.
 
 ## 5. Verify
 

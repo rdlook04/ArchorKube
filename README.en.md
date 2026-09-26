@@ -122,7 +122,7 @@ Four local files (three config files plus `.env`), and no more — each with its
 | `ui/app/config/site.ts` | `site.ts.example` | Excluded namespaces, instance prices |
 | `archor-kube/.env` | `.env.example` | Which tenant it points to |
 
-None is committed. Any improvement outside those three files is valid for everyone using the repo — that's the discipline that keeps the app generic instead of accumulating one organization's assumptions.
+None is committed. Any improvement outside these files is valid for everyone using the repo — that's the discipline that keeps the app generic instead of accumulating one organization's assumptions.
 
 ---
 

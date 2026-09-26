@@ -26,6 +26,7 @@ import type { ExtraFilter } from "./extraFilters";
  * seguridad…).
  */
 export const EXCLUDED_NAMESPACES_EXACT: string[] = [
+  "kube-system",
   "kube-public",
   "kube-node-lease",
   "default",
@@ -33,10 +34,12 @@ export const EXCLUDED_NAMESPACES_EXACT: string[] = [
 
 /**
  * Además de la lista exacta, se descarta cualquier namespace cuyo nombre
- * **contenga** alguno de estos fragmentos. Cubre variantes (kube-system,
- * gatekeeper-system…) sin tener que mantener la lista exacta a mano.
+ * **contenga** alguno de estos fragmentos. Vacío a propósito: un fragmento
+ * como "system" también descarta un namespace de equipo como
+ * "payment-system", y lo hace en todos los módulos sin avisar. Preferí
+ * nombres exactos; la pestaña Setup marca lo que cae solo por un fragmento.
  */
-export const EXCLUDED_NAMESPACES_CONTAINING: string[] = ["system"];
+export const EXCLUDED_NAMESPACES_CONTAINING: string[] = [];
 
 // ── Modelo de costos (FinOps) ────────────────────────────────────────────────
 
@@ -65,7 +68,7 @@ export const HOURS_PER_MONTH = 730;
 export const INSTANCE_HOURLY_USD: Record<string, number> = {};
 
 /** Nombre de la fuente de precios, para mostrarlo junto a las cifras. */
-export const PRICING_SOURCE = "configurá tu fuente de precios en site.ts";
+export const PRICING_SOURCE = "No pricing source configured (set PRICING_SOURCE in site.ts)";
 
 // -- Claves de propiedad en labels/annotations ------------------------------
 

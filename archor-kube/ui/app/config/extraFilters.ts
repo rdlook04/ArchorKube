@@ -2,7 +2,7 @@ import * as site from "./site";
 
 /** Una label o annotation del workload usada como filtro opcional. */
 export interface ExtraFilter {
-  /** Identificador estable (letras y números): se usa en el estado de los filtros. */
+  /** Identificador estable, solo letras y números (sin guiones): se usa en el estado de los filtros. */
   id: string;
   /** Texto del selector. */
   label: string;
@@ -10,11 +10,26 @@ export interface ExtraFilter {
   key: string;
 }
 
+const VALID_ID = /^[a-z0-9]+$/i;
+
 /**
- * Filtros opcionales declarados en `site.ts`. Se leen de forma tolerante: un
- * `site.ts` copiado antes de que existiera `EXTRA_FILTERS` sigue compilando y
- * simplemente no muestra filtros extra.
+ * Lo declarado en `site.ts`, leído de forma tolerante: un `site.ts` copiado
+ * antes de que existiera `EXTRA_FILTERS` sigue compilando y simplemente no
+ * muestra filtros extra.
  */
-export const EXTRA_FILTERS: ExtraFilter[] = (
-  ((site as Record<string, unknown>).EXTRA_FILTERS as ExtraFilter[] | undefined) ?? []
-).filter((f) => /^[a-z0-9]+$/i.test(f.id) && f.key.trim() !== "");
+const DECLARED: ExtraFilter[] =
+  ((site as Record<string, unknown>).EXTRA_FILTERS as ExtraFilter[] | undefined) ?? [];
+
+/** Filtros opcionales en uso. */
+export const EXTRA_FILTERS: ExtraFilter[] = DECLARED.filter(
+  (f) => VALID_ID.test(f.id) && f.key.trim() !== "",
+);
+
+/**
+ * Los que se descartaron por un id inválido (con guion, espacios…) o sin
+ * clave. La pestaña Setup los muestra: sin eso, el filtro desaparece sin
+ * ningún error.
+ */
+export const INVALID_EXTRA_FILTERS: ExtraFilter[] = DECLARED.filter(
+  (f) => !EXTRA_FILTERS.includes(f),
+);
