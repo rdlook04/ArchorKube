@@ -1,6 +1,11 @@
 import { stateClient } from "@dynatrace-sdk/client-state";
 
-import { EXCLUDED_NAMESPACES_EXACT, INSTANCE_HOURLY_USD, OWNERSHIP_KEYS } from "../config/site";
+import {
+  EXCLUDED_NAMESPACES_CONTAINING,
+  EXCLUDED_NAMESPACES_EXACT,
+  INSTANCE_HOURLY_USD,
+  OWNERSHIP_KEYS,
+} from "../config/site";
 import { EXTRA_FILTERS } from "../config/extraFilters";
 import { ownership } from "../ownership";
 import { excludedNamespacesClause } from "../queries/namespaces";
@@ -81,12 +86,25 @@ const presence = (
 
 // ─── Descubrimiento de labels ────────────────────────────────────────────────
 
-/** Qué nombres de clave suelen significar cada campo de propiedad. */
+/**
+ * Qué nombres de clave suelen significar cada campo de propiedad. Tier solo
+ * acepta claves que se llamen tier: una "criticidad de negocio" es otro dato
+ * aunque suene parecido, y va como filtro opcional.
+ */
 const FIELD_HINTS: Record<keyof typeof OWNERSHIP_KEYS, RegExp> = {
   squad: /squad|team|owner(?!-id)|equipo/i,
   tribu: /tribe|tribu|domain|dominio/i,
-  tier: /tier|criticality|criticidad/i,
+  tier: /tier/i,
   appCode: /part-of|app-?code|product|producto/i,
+};
+
+/**
+ * Forma que deben tener los valores de una clave para proponerla como ese
+ * campo. Tier es una escala corta (1, 2, 3 · t1 · tier-2); los demás campos
+ * son nombres libres y no se validan por forma.
+ */
+const VALUE_SHAPE: Partial<Record<keyof typeof OWNERSHIP_KEYS, RegExp>> = {
+  tier: /^(t|tier[-_ ]?)?\d+$/i,
 };
 
 /**
@@ -134,24 +152,24 @@ const evaluateLabelDiscovery = (records: Records): CheckResult => {
   for (const field of Object.keys(OWNERSHIP_KEYS) as (keyof typeof OWNERSHIP_KEYS)[]) {
     const configured = OWNERSHIP_KEYS[field];
     const configuredPct = pct(coverage.get(configured) ?? 0, total);
+    // Dos protecciones antes de proponer un reemplazo, porque cubrir más
+    // workloads no lo hace el mismo dato:
+    //  1. la forma de los valores del campo (tier = escala corta), que vale
+    //     también en una instalación nueva, cuando la clave configurada aún
+    //     no existe y no hay con qué comparar;
+    //  2. la misma escala que la clave configurada, si esa tiene valores.
+    const values = (key: string) => [...(samples.get(key) ?? [])];
+    const numeric = (key: string) =>
+      values(key).length > 0 && values(key).every((v) => /^\d+$/.test(v));
+    const shape = VALUE_SHAPE[field];
+    const fits = (key: string) =>
+      (!shape || (values(key).length > 0 && values(key).every((v) => shape.test(v)))) &&
+      (values(configured).length === 0 || numeric(configured) === numeric(key));
     const best = [...coverage.entries()]
-      .filter(([k]) => k !== configured && FIELD_HINTS[field].test(k))
+      .filter(([k]) => k !== configured && FIELD_HINTS[field].test(k) && fits(k))
       .sort((a, b) => b[1] - a[1])[0];
     const bestPct = best ? pct(best[1], total) : 0;
-    // Si la clave configurada tiene valores y la candidata usa otra escala
-    // (números contra texto), no es el mismo dato aunque cubra más workloads.
-    const numeric = (key: string) => {
-      const values = [...(samples.get(key) ?? [])];
-      return values.length > 0 && values.every((v) => /^\d+$/.test(v));
-    };
-    const sameScale =
-      !best ||
-      (samples.get(configured)?.size ?? 0) === 0 ||
-      numeric(configured) === numeric(best[0]);
-    if (best && bestPct >= configuredPct + 10 && !sameScale) {
-      // Otro dato, no un reemplazo: se ofrece como filtro opcional más abajo.
-      items.push(`${field}: "${configured}" is on ${configuredPct}% of workloads.`);
-    } else if (best && bestPct >= configuredPct + 10) {
+    if (best && bestPct >= configuredPct + 10) {
       suggestions++;
       items.push(
         `${field}: configured "${configured}" is on ${configuredPct}% of workloads${sample(configured)}; "${best[0]}" is on ${bestPct}%${sample(best[0])}. If the values mean the same, set OWNERSHIP_KEYS.${field} = "${best[0]}" in ui/app/config/site.ts.`,
@@ -165,20 +183,30 @@ const evaluateLabelDiscovery = (records: Records): CheckResult => {
   // esconde, así que conviene saberlo aquí y no por su ausencia en la UI.
   for (const filter of EXTRA_FILTERS) {
     const share = pct(coverage.get(filter.key) ?? 0, total);
+    const single = (samples.get(filter.key)?.size ?? 0) === 1;
     items.push(
-      share > 0
-        ? `Optional filter "${filter.label}": "${filter.key}" is on ${share}% of workloads${sample(filter.key)}.`
-        : `Optional filter "${filter.label}": "${filter.key}" wasn't found, so the filter is hidden.`,
+      share === 0
+        ? `Optional filter "${filter.label}": "${filter.key}" wasn't found, so the filter is hidden.`
+        : single
+          ? `Optional filter "${filter.label}": "${filter.key}" is on ${share}% of workloads but has a single value${sample(filter.key)}, so filtering by it changes nothing.`
+          : `Optional filter "${filter.label}": "${filter.key}" is on ${share}% of workloads${sample(filter.key)}.`,
     );
   }
 
   // Claves que suelen servir como filtro y todavía no se usan en ningún lado.
+  // Con un solo valor no filtran nada (un "environment" que siempre es prod).
   const used = new Set<string>([
     ...Object.values(OWNERSHIP_KEYS),
     ...EXTRA_FILTERS.map((f) => f.key),
   ]);
   const candidates = [...coverage.entries()]
-    .filter(([k, n]) => !used.has(k) && FILTER_HINTS.test(k) && pct(n, total) >= 10)
+    .filter(
+      ([k, n]) =>
+        !used.has(k) &&
+        FILTER_HINTS.test(k) &&
+        pct(n, total) >= 10 &&
+        (samples.get(k)?.size ?? 0) >= 2,
+    )
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
   for (const [key, n] of candidates) {
@@ -196,6 +224,14 @@ const evaluateLabelDiscovery = (records: Records): CheckResult => {
     items,
   };
 };
+
+/**
+ * Nombres típicos de namespaces de plataforma: observabilidad, ingress, malla,
+ * GitOps, seguridad y la propia infraestructura del cluster. Solo sirve para
+ * advertir; qué se excluye lo decide cada instalación en site.ts.
+ */
+const PLATFORM_NAMESPACE =
+  /^(kube-|dynatrace|monitoring|prometheus|grafana|logging|elastic|ingress|nginx|traefik|istio|linkerd|cert-manager|argocd|argo-|flux|gatekeeper|kyverno|keda|velero|external-dns|calico|tigera|cilium|metallb|azure-|aks-|gke-|amazon-|aws-)/i;
 
 // ─── Chequeos ────────────────────────────────────────────────────────────────
 
@@ -447,10 +483,62 @@ ${ownership.enrich("k8s.workload.name")}
             detail: `All ${EXCLUDED_NAMESPACES_EXACT.length} excluded namespace(s) exist.`,
           }
         : {
-            status: "warn",
-            detail: `${missing.length} excluded namespace(s) don't exist in any cluster.`,
+            // Inofensivo (los defaults kube-public/kube-node-lease no existen en
+            // todos los clusters), salvo que sea un nombre mal escrito.
+            status: "info",
+            detail: `${missing.length} excluded namespace(s) don't exist in any cluster. Harmless, unless one is a typo of a real namespace.`,
             items: missing.map((ns) => `Not found: ${ns}`),
           };
+    },
+  },
+  {
+    kind: "query",
+    id: "namespace-scope",
+    group: "installation",
+    title: "Namespaces that aren't teams are excluded",
+    affects: ["Ownership (namespace provider)", "All workload modules"],
+    fix: "Add platform namespaces (monitoring, ingress, Dynatrace, service mesh…) to EXCLUDED_NAMESPACES_EXACT in ui/app/config/site.ts. If a team namespace is excluded only because it contains a substring from EXCLUDED_NAMESPACES_CONTAINING, make that rule more specific.",
+    query: "smartscapeNodes K8S_NAMESPACE | fields name | limit 10000",
+    maxRecords: 10000,
+    evaluate: (records) => {
+      const names = [...new Set(records.map((r) => String(r.name)))];
+      const exact = new Set(EXCLUDED_NAMESPACES_EXACT);
+      const bySubstring = (ns: string) =>
+        EXCLUDED_NAMESPACES_CONTAINING.some((needle) => ns.includes(needle));
+      const excluded = (ns: string) => exact.has(ns) || bySubstring(ns);
+
+      // Con el proveedor de namespace en la cadena, un namespace de plataforma
+      // que no se excluye aparece como "squad" e infla la cobertura de dueños.
+      const namespaceOwners = ownership.id.split("+").includes("namespace");
+      const platformLeft = names.filter((ns) => PLATFORM_NAMESPACE.test(ns) && !excluded(ns));
+      // Lo contrario: un namespace de equipo que cae por una regla de substring
+      // ("system" excluye también "payment-system") sin que nadie lo note.
+      const teamDropped = names.filter(
+        (ns) => !exact.has(ns) && bySubstring(ns) && !PLATFORM_NAMESPACE.test(ns),
+      );
+
+      const items = [
+        ...platformLeft.map(
+          (ns) =>
+            `Looks like a platform namespace and isn't excluded: ${ns}${namespaceOwners ? " (it would show up as a squad)" : ""}`,
+        ),
+        ...teamDropped.map(
+          (ns) => `Excluded only by a substring rule, check it isn't a team namespace: ${ns}`,
+        ),
+      ];
+      if (items.length === 0) {
+        return {
+          status: "ok",
+          detail: "No platform namespace left in, no team namespace dropped.",
+        };
+      }
+      return {
+        status: namespaceOwners && platformLeft.length > 0 ? "warn" : "info",
+        detail: namespaceOwners
+          ? "The namespace provider is in the ownership chain, so every namespace left in counts as a team."
+          : "Review which namespaces count as workloads of a team.",
+        items: items.slice(0, 15),
+      };
     },
   },
 

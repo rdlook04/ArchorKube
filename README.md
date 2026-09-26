@@ -113,7 +113,7 @@ Antes de confiar en los números, dos cosas que dependen de tu entorno:
 
 ## Configurar
 
-Tres archivos, y ninguno más — cada uno con su `.example` versionado, igual que `.env`:
+Cuatro archivos locales (tres de configuración más `.env`), y ninguno más — cada uno con su `.example` versionado:
 
 | Archivo | Se copia de | Qué decide |
 |---|---|---|

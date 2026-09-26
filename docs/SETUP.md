@@ -4,8 +4,8 @@ This is the procedure to install ArchorKube on a Dynatrace tenant and confirm it
 
 The short version:
 
-1. Install and log in.
-2. Copy the four local config files from their `.example`.
+1. Install.
+2. Create the local config files from their `.example` (three config files plus `.env`).
 3. Discover where your tenant keeps owners, instance types and useful labels.
 4. Fill `site.ts` and choose the ownership provider.
 5. Run the app and open **Setup** until nothing says *Not working*.
@@ -19,13 +19,15 @@ The short version:
 - **Four files are local and never committed:** `archor-kube/.env`, `ui/app/ownership/active.ts`, `ui/app/ownership/port.ts` (optional) and `ui/app/config/site.ts`. All installation-specific values go there, nowhere else. If you think you need a fifth local file, stop and ask: it means something is being coupled to one organization.
 - **Don't invent owners, tiers or prices.** When the data isn't in the tenant, leave the field empty (the app shows "unknown" instead of wrong numbers) and tell the person what's missing.
 - **Deploying is the person's call.** It installs an app in their tenant and asks them to consent scopes. Prepare everything, then ask.
-- **Don't change a mapping just because another label covers more workloads.** Compare the values first: a tier label with `1, 2, 3` and a "criticality" label with business names are different data, even if the second one is more common. Offer the second as an optional filter instead.
+- **Don't change a mapping just because another label covers more workloads.** Compare the values first: a tier label with `1, 2, 3` and a "criticality" label with business names are different data, even if the second one is more common. A tier must look like a tier (`1, 2, 3`, `t1`, `tier-2`). Offer the other key as an optional filter instead.
+- **A key with a single value is useless as a filter** (an `environment` that is always `prod`). Don't add it.
+- **Ignore the `npx dt-app update` banner** that builds print. Updating changes dependencies; that's the maintainers' decision, not part of a setup.
 
 ---
 
-## 1. Install and log in
+## 1. Install
 
-Requirements: Node 24, a Dynatrace tenant with Kubernetes monitored (Dynatrace Operator), and permission to install apps in it.
+Requirements: Node 24 (pinned in `.node-version`; with fnm or nvm, run `fnm use` or `nvm use` inside `archor-kube/`), a Dynatrace tenant with Kubernetes monitored (Dynatrace Operator), and permission to install apps in it. The login to the tenant comes later: `dt-app` opens the browser the first time `npm start` runs.
 
 ```bash
 git clone https://github.com/rdlook04/ArchorKube.git
@@ -61,15 +63,31 @@ Every check the app runs lives in one file: [`archor-kube/ui/app/setup/checks.ts
 
 The three discovery queries that decide the configuration:
 
-**Where owners live (label keys).** Counts which label and annotation keys your workloads carry. The labels provider reads this same source.
+**Where owners live (label keys).** Counts how many workloads carry each label key. The labels provider reads this same source. Run it again with `kubernetesAnnotations` in place of `cloudApplicationLabels` to count annotations.
 
 ```
 fetch dt.entity.cloud_application
-| fields lbl = cloudApplicationLabels, ann = kubernetesAnnotations
-| limit 10000
+| fields id, s = toString(cloudApplicationLabels)
+| fieldsAdd pair = splitString(s, "\", \"")
+| expand pair
+| parse pair, "LD:k '\":'"
+| fieldsAdd k = replaceString(k, "{\"", "")
+| summarize workloads = countDistinct(id), by:{k}
+| sort workloads desc
 ```
 
-Count, per key, the share of workloads that have it, and look at a few values of each. Setup's *Ownership label keys and optional filters* check does exactly this.
+Then look at the values of each candidate key before deciding what it means (replace `team`):
+
+```
+fetch dt.entity.cloud_application
+| fields v = coalesce(kubernetesAnnotations[`team`], cloudApplicationLabels[`team`])
+| filter isNotNull(v)
+| summarize workloads = count(), by:{v}
+| sort workloads desc
+| limit 20
+```
+
+Setup's *Ownership label keys and optional filters* check does both in one step.
 
 **Instance types (for prices).**
 
@@ -99,7 +117,7 @@ Owners are resolved **field by field** through a chain: the first provider that 
 | A catalog outside Kubernetes (Backstage, CMDB, a lookup table in Grail) | Your own provider in `port.ts`, first in the chain |
 | A few workloads resolve wrong | `manualProvider()` rules, first in the chain |
 
-The default chain (`manual → labels → namespace`) is a good start for most clusters.
+The default chain (`manual → labels → namespace`) is a good start for most clusters, **once the excluded namespaces are settled**: with `namespaceProvider` in the chain, every namespace that isn't excluded counts as a team. A `monitoring` or `ingress-nginx` namespace left in shows up as a squad and makes ownership coverage look better than it is. Setup's *Namespaces that aren't teams are excluded* check lists them.
 
 ### Fill `config/site.ts`
 
@@ -107,7 +125,7 @@ The default chain (`manual → labels → namespace`) is a good start for most c
 |---|---|---|
 | `OWNERSHIP_KEYS` | The label keys for tier, squad, tribe/domain and app code | Discovery query 1 |
 | `EXTRA_FILTERS` | Other label keys people want to filter by (business criticality, cost center, product, environment) | Discovery query 1: keys that aren't owners |
-| `EXCLUDED_NAMESPACES_EXACT` / `_CONTAINING` | System and platform namespaces that aren't workloads of any team | Ask the person; Setup flags names that don't exist |
+| `EXCLUDED_NAMESPACES_EXACT` / `_CONTAINING` | System and platform namespaces that aren't workloads of any team. Prefer exact names: a substring like `system` also drops a team namespace called `payment-system` | Ask the person; Setup flags platform namespaces left in and team namespaces dropped by a substring |
 | `INSTANCE_HOURLY_USD` | Hourly price for each instance type found | Discovery query 2 + the person's pricing (list price or contract) |
 | `PRICING_SOURCE` | Where the prices came from, in words | The person |
 
@@ -136,6 +154,16 @@ Open **Setup** in the app header and work through the results:
 - **Optional**: nothing breaks; it enables something extra if configured.
 
 Re-run Setup after each change to `site.ts` or `active.ts`. You're done when nothing says *Not working* and every *Needs attention* has an explanation the person accepts.
+
+### If you can't open the app
+
+An agent without a browser can't log in, so it can't see Setup. In that case:
+
+1. Make sure `npm run verify` passes.
+2. Get the discovery results from the person (or through the Dynatrace MCP server) and configure from them.
+3. Hand over with a list of what's left to confirm: the questions you asked, the fields you left empty, and a request to open Setup after the first `npm start` and send back anything that isn't OK.
+
+That handover is the done criterion; don't report the setup as validated until someone has seen Setup.
 
 ## 6. Deploy (the person confirms)
 

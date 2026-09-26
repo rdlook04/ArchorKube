@@ -9,7 +9,7 @@ Follow [`docs/SETUP.md`](docs/SETUP.md) from start to end. In short: copy the lo
 ## Rules that always apply
 
 - Never ask for, paste or store Dynatrace tokens. `dt-app` logs in through the browser. Don't read `archor-kube/.dt-app/`.
-- Installation-specific values go only in the four local files, never committed: `archor-kube/.env`, `archor-kube/ui/app/ownership/active.ts`, `archor-kube/ui/app/ownership/port.ts` (optional) and `archor-kube/ui/app/config/site.ts`. Each has a versioned `.example`.
+- Installation-specific values go only in the four local files (three config files plus `.env`), never committed: `archor-kube/.env`, `archor-kube/ui/app/ownership/active.ts`, `archor-kube/ui/app/ownership/port.ts` (optional) and `archor-kube/ui/app/config/site.ts`. Each has a versioned `.example`.
 - Don't invent owners, tiers or prices. Missing data stays empty and shows as "unknown".
 - Deploying (`npm run deploy`) installs the app in someone's tenant: prepare it, then ask the person.
 

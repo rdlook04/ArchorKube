@@ -16,7 +16,7 @@ ui/app/ownership/
 ├── manual.ts      proveedor: reglas declaradas
 ├── none.ts        proveedor: sin propiedad
 ├── chain.ts       encadena varios
-└── active.ts      ← el único archivo que configuras
+└── active.ts      ← qué proveedores usa tu instalación (las claves de labels van en config/site.ts)
 ```
 
 ## El contrato
@@ -60,7 +60,7 @@ Poner las excepciones manuales primero es deliberado: es la vía para corregir a
 
 El default. Lee la propiedad del propio workload. Las **annotations ganan sobre las labels**, porque las labels de un pod template son inmutables en algunos controladores y las annotations no, así que son la vía para sobrescribir un workload puntual.
 
-Las claves se cambian en un solo sitio:
+Las claves se cambian en un solo sitio, `ui/app/config/site.ts`:
 
 ```ts
 export const OWNERSHIP_KEYS = {

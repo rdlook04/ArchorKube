@@ -113,7 +113,7 @@ Before trusting the numbers, two things that depend on your environment:
 
 ## Configuring
 
-Three files, and no more — each with its versioned `.example`, just like `.env`:
+Four local files (three config files plus `.env`), and no more — each with its versioned `.example`:
 
 | File | Copied from | What it decides |
 |---|---|---|
