@@ -12,6 +12,27 @@ import { IdleVerdictChart } from "../components/IdleVerdictChart";
 import { idleSummary, idleWorkloads } from "../queries";
 import { ASSIST_INTENT_OPTIONS, assistIdlePayload, assistIdlePrompt } from "../queries/assist";
 import { serviceUrl, workloadUrl } from "../queries/links";
+import { sendToOllamaBridge } from "../ai/ollamaBridge";
+
+/**
+ * Spike del puente local (Fase 1 de M15): solo en Ociosos hasta validar el
+ * flujo en el tenant desplegado. El prompt va completo porque no sale de la
+ * máquina del usuario; el filtro de datos llega con la Fase 2.
+ */
+const sendIdleToOllama = (row: Record<string, unknown>) => {
+  void sendToOllamaBridge(assistIdlePrompt(row), "Idle").then((result) => {
+    if (result === "sent") return;
+    showToast({
+      title: result === "blocked" ? "The browser blocked the window" : "The bridge did not answer",
+      message:
+        result === "blocked"
+          ? "Allow pop-ups for this page and try again."
+          : "Start it with: python -m http.server 8765 (in tools/ollama-bridge).",
+      type: "warning",
+      lifespan: 6000,
+    });
+  });
+};
 
 /** Copia el prompt de Assist al portapapeles y avisa con un toast. */
 const copyAssistPrompt = (row: Record<string, unknown>) => {
@@ -48,6 +69,7 @@ const idleRowActions = (row: Record<string, unknown>) => {
         <Menu.Item onSelect={() => copyAssistPrompt(row)}>
           Copiar prompt para Assist
         </Menu.Item>
+        <Menu.Item onSelect={() => sendIdleToOllama(row)}>Send to local Ollama (preview)</Menu.Item>
         <Menu.Link href={serviceLink ?? undefined} target="_blank" disabled={!serviceLink}>
           Abrir servicio (APM)
         </Menu.Link>

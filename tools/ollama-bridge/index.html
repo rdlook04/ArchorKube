@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ArchorKube Ollama Bridge</title>
+<!--
+  Puente local entre la app de Dynatrace y Ollama.
+
+  La app no puede hacer fetch a localhost (la CSP de la plataforma cierra
+  connect-src), pero sí puede abrir una ventana. Esta página corre en tu
+  máquina, recibe el prompt por postMessage y llama a Ollama desde aquí.
+
+  Protocolo (v1):
+    bridge -> opener   { type: "archorkube:ready", v: 1 }            (sin datos)
+    opener -> bridge   { type: "archorkube:prompt", v: 1, prompt, module? }
+  Solo se aceptan prompts de orígenes en la allowlist.
+-->
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d1f2b; --muted: #5f6377;
+    --border: #d9dbe4; --accent: #4556d7; --read: #1d7a4a; --mutate: #9a5b00;
+    --destroy: #b3261e; --code: #eef0f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14151c; --panel: #1c1e28; --text: #e6e7ee; --muted: #9a9db0;
+      --border: #30334a; --accent: #8c9bff; --read: #5ccf8f; --mutate: #f0b35a;
+      --destroy: #ff8a80; --code: #252836;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .panel { background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  label { color: var(--muted); font-size: 12px; }
+  select, button, textarea { font: inherit; color: var(--text); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  textarea { width: 100%; min-height: 140px; resize: vertical; }
+  .status { font-size: 12px; color: var(--muted); }
+  .status.ok::before { content: "● "; color: var(--read); }
+  .status.warn::before { content: "● "; color: var(--mutate); }
+  .status.err::before { content: "● "; color: var(--destroy); }
+  #answer { white-space: pre-wrap; word-wrap: break-word; }
+  #answer:empty::before { content: "The analysis will appear here."; color: var(--muted); }
+  .cmd { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px;
+    background: var(--code); border-radius: 6px; margin-top: 8px; }
+  .cmd code { flex: 1; white-space: pre-wrap; word-break: break-all;
+    font: 12px/1.5 ui-monospace, Consolas, monospace; }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px;
+    border: 1px solid currentColor; white-space: nowrap; }
+  .badge.read { color: var(--read); } .badge.mutate { color: var(--mutate); }
+  .badge.destroy { color: var(--destroy); }
+  details summary { cursor: pointer; color: var(--muted); }
+  h2 { font-size: 14px; margin: 0 0 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ArchorKube Ollama Bridge</h1>
+  <p class="sub">Runs on your machine. Prompts go from ArchorKube to your local Ollama and nowhere else.</p>
+
+  <section class="panel">
+    <div class="row">
+      <div>
+        <label for="model">Model</label><br>
+        <select id="model"><option>Loading…</option></select>
+      </div>
+      <div style="flex:1"></div>
+      <span id="ollama-status" class="status">Checking Ollama…</span>
+      <span id="link-status" class="status">Waiting for ArchorKube…</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <details id="prompt-box">
+      <summary>Prompt received <span id="prompt-source" class="status"></span></summary>
+      <p class="status">This is exactly what arrived from ArchorKube. You can edit it before running it.</p>
+      <textarea id="prompt" placeholder="Paste a prompt here, or send one from ArchorKube."></textarea>
+    </details>
+    <div class="row" style="margin-top:12px">
+      <button id="run" class="primary" disabled>Analyze</button>
+      <button id="stop" disabled>Stop</button>
+      <button id="copy" disabled>Copy answer</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Analysis</h2>
+    <div id="answer"></div>
+  </section>
+
+  <section class="panel" id="cmd-panel" hidden>
+    <h2>Commands in the answer</h2>
+    <p class="status">Classified by rules in this page, not by the model. Review before running anything.</p>
+    <div id="cmds"></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const OLLAMA = "http://localhost:11434";
+  const MODEL_KEY = "archorkube.bridge.model";
+
+  /*
+   * Quién puede mandarle prompts al puente. Cualquier página puede abrir esta
+   * ventana, así que sin esta lista un sitio ajeno podría usar tu Ollama.
+   * Se agregan orígenes propios en localStorage ("archorkube.bridge.origins",
+   * un JSON con una lista de patrones) sin tocar este archivo.
+   */
+  const DEFAULT_ORIGINS = [
+    /^https:\/\/[a-z0-9-]+\.apps\.dynatrace\.com$/,
+    /^https:\/\/[a-z0-9-]+\.(sprint|dev)\.apps\.dynatracelabs\.com$/,
+    /^https?:\/\/localhost:300[0-5]$/,
+  ];
+  const extraOrigins = (() => {
+    try {
+      const list = JSON.parse(localStorage.getItem("archorkube.bridge.origins") || "[]");
+      return Array.isArray(list) ? list.map((p) => new RegExp(p)) : [];
+    } catch { return []; }
+  })();
+  const originAllowed = (o) => [...DEFAULT_ORIGINS, ...extraOrigins].some((re) => re.test(o));
+
+  const $ = (id) => document.getElementById(id);
+  const setStatus = (el, cls, text) => { el.className = "status " + cls; el.textContent = text; };
+  const store = {
+    get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+    set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* sin storage */ } },
+  };
+
+  let controller = null;
+  // El prompt puede llegar antes de que respondan los modelos: se corre en
+  // cuanto estén las dos cosas, una sola vez por prompt recibido.
+  let autoRunPending = false;
+  const maybeAutoRun = () => {
+    if (autoRunPending && $("model").value && $("model").value !== "Loading…" && !controller) {
+      autoRunPending = false;
+      run();
+    }
+  };
+
+  // ---- Ollama -------------------------------------------------------------
+  async function loadModels() {
+    try {
+      const r = await fetch(OLLAMA + "/api/tags");
+      const { models } = await r.json();
+      const names = models.map((m) => m.name);
+      const saved = store.get(MODEL_KEY);
+      $("model").innerHTML = names.map((n) => `<option ${n === saved ? "selected" : ""}>${n}</option>`).join("");
+      setStatus($("ollama-status"), names.length ? "ok" : "warn",
+        names.length ? `Ollama ready · ${names.length} model(s)` : "Ollama has no models (ollama pull …)");
+    } catch {
+      setStatus($("ollama-status"), "err", "Ollama not reachable on localhost:11434");
+    }
+    refreshButtons();
+    maybeAutoRun();
+  }
+  $("model").addEventListener("change", (e) => store.set(MODEL_KEY, e.target.value));
+
+  async function run() {
+    const prompt = $("prompt").value.trim();
+    if (!prompt) return;
+    controller = new AbortController();
+    $("answer").textContent = "";
+    $("cmd-panel").hidden = true;
+    refreshButtons();
+    try {
+      const r = await fetch(OLLAMA + "/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({ model: $("model").value, stream: true,
+          messages: [{ role: "user", content: prompt }] }),
+      });
+      if (!r.ok) throw new Error(`Ollama answered ${r.status}`);
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const chunk = JSON.parse(line);
+          if (chunk.message?.content) $("answer").textContent += chunk.message.content;
+        }
+      }
+    } catch (e) {
+      if (e.name !== "AbortError") $("answer").textContent += `\n\n[error] ${e.message}`;
+    } finally {
+      controller = null;
+      renderCommands($("answer").textContent);
+      refreshButtons();
+    }
+  }
+
+  // ---- Validación determinística de comandos -----------------------------
+  /*
+   * Lo obvio se resuelve con reglas, no con otro modelo: el verbo de kubectl
+   * dice si el comando lee, modifica o destruye. Un validador probabilístico
+   * (p. ej. Jev) solo tiene sentido para lo que las reglas no cubren.
+   */
+  const READ = /^(get|describe|logs|top|explain|api-resources|api-versions|version|events|auth\s+can-i|diff)\b/;
+  const DESTROY = /^(delete|drain|cordon|taint|replace\s+--force)\b/;
+  function classify(cmd) {
+    const m = cmd.match(/\bkubectl\s+(?:-[^\s]+\s+\S+\s+)*(.+)$/);
+    if (!m) return /\bhelm\s+(uninstall|delete)\b/.test(cmd) ? "destroy"
+      : /\bhelm\s+(upgrade|install|rollback)\b/.test(cmd) ? "mutate" : "read";
+    const sub = m[1];
+    if (DESTROY.test(sub)) return "destroy";
+    if (READ.test(sub) || /^rollout\s+(status|history)\b/.test(sub)) return "read";
+    return "mutate";
+  }
+  const LABEL = { read: "read-only", mutate: "changes the cluster", destroy: "destructive" };
+  function renderCommands(text) {
+    const cmds = [...new Set(text.split("\n")
+      .map((l) => l.trim().replace(/^[$>#]\s*/, "").replace(/^`+|`+$/g, ""))
+      .filter((l) => /^(kubectl|helm)\s/.test(l)))];
+    $("cmds").innerHTML = "";
+    for (const c of cmds) {
+      const kind = classify(c);
+      const row = document.createElement("div");
+      row.className = "cmd";
+      row.innerHTML = `<span class="badge ${kind}">${LABEL[kind]}</span><code></code>`;
+      row.querySelector("code").textContent = c;
+      $("cmds").appendChild(row);
+    }
+    $("cmd-panel").hidden = cmds.length === 0;
+  }
+
+  // ---- Enlace con ArchorKube ---------------------------------------------
+  window.addEventListener("message", (event) => {
+    const d = event.data;
+    if (!d || d.type !== "archorkube:prompt" || d.v !== 1) return;
+    if (!originAllowed(event.origin)) {
+      setStatus($("link-status"), "err", `Rejected prompt from ${event.origin}`);
+      return;
+    }
+    $("prompt").value = String(d.prompt || "");
+    $("prompt-source").textContent = `· from ${d.module ? d.module + " @ " : ""}${event.origin}`;
+    setStatus($("link-status"), "ok", "Prompt received from ArchorKube");
+    refreshButtons();
+    autoRunPending = true;
+    maybeAutoRun();
+  });
+
+  if (window.opener) {
+    // El aviso no lleva datos, por eso puede ir a "*": la app responde solo si
+    // el mensaje viene de la ventana que ella misma abrió.
+    window.opener.postMessage({ type: "archorkube:ready", v: 1 }, "*");
+  } else {
+    setStatus($("link-status"), "warn", "Opened directly · paste a prompt");
+    $("prompt-box").open = true;
+  }
+
+  function refreshButtons() {
+    const busy = !!controller;
+    const hasModel = !!$("model").value && $("model").value !== "Loading…";
+    $("run").disabled = busy || !hasModel || !$("prompt").value.trim();
+    $("stop").disabled = !busy;
+    $("copy").disabled = busy || !$("answer").textContent;
+  }
+  $("prompt").addEventListener("input", refreshButtons);
+  $("run").addEventListener("click", run);
+  $("stop").addEventListener("click", () => controller?.abort());
+  $("copy").addEventListener("click", () => navigator.clipboard.writeText($("answer").textContent));
+
+  loadModels();
+})();
+</script>
+</body>
+</html>
