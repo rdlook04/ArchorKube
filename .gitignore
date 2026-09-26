@@ -2,7 +2,8 @@ node_modules/
 dist/
 .dt-app/
 *.log
-.claude/
+.claude/*
+!.claude/skills/
 
 # Configuracion local con el environment de despliegue
 archor-kube/.env
