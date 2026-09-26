@@ -2,13 +2,13 @@ import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
 
-import { dotted, ModulePage } from "../components/ModulePage";
+import { dotted, ModulePage, type ModuleEnglish } from "../components/ModulePage";
 import { RiskLevelChart } from "../components/RiskLevelChart";
 import { workloadRisk, workloadRiskSummary } from "../queries";
 import { assistRiskPayload, assistRiskPrompt } from "../queries/assist";
 import { workloadUrl } from "../queries/links";
 import { riskPractices } from "../practices/flagged";
-import { RowMenu } from "../components/RowMenu";
+import { RowMenu, WORKLOAD_LINK } from "../components/RowMenu";
 
 /** Menú por fila: el compartido de todos los módulos (ver components/RowMenu). */
 const RiskRowMenu = ({ row }: { row: Record<string, unknown> }) => (
@@ -18,7 +18,7 @@ const RiskRowMenu = ({ row }: { row: Record<string, unknown> }) => (
     prompt={assistRiskPrompt}
     assistPayload={assistRiskPayload}
     practices={riskPractices}
-    links={[{ label: "Abrir workload (Kubernetes)", href: workloadUrl(row.deployment_id) }]}
+    links={[{ label: WORKLOAD_LINK, href: workloadUrl(row.deployment_id) }]}
   />
 );
 
@@ -84,8 +84,61 @@ Estos workloads **están un incidente de distancia** de una interrupción. Una r
 
 *Nota: módulo de disponibilidad/resiliencia, no de consumo, por eso no muestra pérdida en USD.*`;
 
+const riskAboutEn = `## 📊 What the report shows
+
+Each row is a **Deployment or StatefulSet** with at least one fragility factor. The **score (1-3)** adds up three independent conditions:
+
+* **Single replica:** it runs with **only one pod**. If that pod (or its node) goes down, the service is out; there's no redundancy.
+* **No *liveness probe*:** Kubernetes **can't restart** a hung container (alive but not answering).
+* **No *readiness probe*:** Kubernetes **sends traffic** to the pod before it's ready, causing errors during startup.
+
+The score sets a level: **\`CRITICO\`** (critical, 3 factors), **\`ALTO\`** (high, 2), **\`MEDIO\`** (medium, 1). *Workloads with no factor (score 0) don't show up: they carry no risk.*
+
+---
+
+## ⚠️ Why should I care?
+
+These workloads **are one incident away** from an outage. A single replica can't survive node maintenance or a deploy; missing *probes* turn a hang into silent downtime. The impact is multiplied by the **tier**: a \`CRITICO\` in tier 1 is a business outage waiting to happen.
+
+---
+
+## 🛠️ How do I fix it?
+
+1. **Single replica:** go to **≥2 replicas** and add a **PodDisruptionBudget** to survive node maintenance (except legitimate *singletons* such as some StatefulSets).
+2. **Missing probes:** define **liveness** and **readiness** on every container (with the right *endpoints* and *timeouts*).
+3. **Prioritize by tier:** tackle the \`CRITICO\` and \`ALTO\` ones in business tiers first.
+
+> 💡 Use **Ask Dynatrace Assist** on each row for a remediation plan with the evidence already loaded.
+
+*Note: this is an availability/resilience module, not a consumption one, so it shows no loss in USD.*`;
+
+const riskEn: ModuleEnglish = {
+  title: "Outage risk (M5 — Workloads)",
+  about: riskAboutEn,
+  simple: {
+    que: "Applications with only one copy running, or that nobody is checking the pulse of.",
+    porque:
+      "With a single copy, any failure or maintenance leaves the service down: there's no one to serve while it comes back up. Without a health check, the system keeps sending users to a copy that no longer answers.",
+    accion:
+      "The squad raises tier 1 applications to two or more copies and adds the health checks. It's the cheapest fix in this app: it's configuration, not development.",
+  },
+  detailNoun: "workloads at risk of an outage (highest score first)",
+  headers: {
+    nivel: "Level",
+    risk_score: "Score (0-3)",
+    workloads: "Workloads",
+    kind: "Kind",
+    replicas: "Replicas",
+    single_replica: "Single replica",
+    liveness_gap: "Liveness",
+    readiness_gap: "Readiness",
+  },
+  facets: { nivel: "Level" },
+};
+
 export const Risk = () => (
   <ModulePage
+    en={riskEn}
     title="Riesgo de caída (M5 — Workloads)"
     about={riskAbout}
     summaryQuery={workloadRiskSummary}

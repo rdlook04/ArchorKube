@@ -32,10 +32,10 @@ interface BreakdownRecord {
  * segmento, una señal con su color semántico.
  */
 export const PreventiveSignalChart = ({ filters }: { filters: TierFilterValue }) => {
-  const { t } = useT();
+  const { t, lang } = useT();
   const c = t.chart;
   const [dimension, setDimension] = useState<BreakdownDimension>("tier");
-  const { data, error, isLoading } = useDql({ query: preventiveBreakdown(dimension, filters) });
+  const { data, error, isLoading } = useDql({ query: preventiveBreakdown(dimension, { ...filters, lang }) });
 
   const chartData = useMemo<CategoricalBarChartData[]>(() => {
     const records = (data?.records ?? []) as BreakdownRecord[];

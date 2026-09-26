@@ -3,6 +3,7 @@ import { deploymentIdJoin } from "./links";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { rangeWindow } from "./analysisWindow";
 import { excludedNamespacesClause } from "./namespaces";
+import { noneLabel } from "./lang";
 
 /**
  * M8 — Detección preventiva (SPEC §4).
@@ -68,7 +69,7 @@ export const preventiveBreakdown = (
   params?: QueryParams,
 ): string =>
   `${preventiveSignals.build(params)}
-| summarize workloads = count(), by:{ category = coalesce(${dimension}, "(sin ${dimension})"), senal }
+| summarize workloads = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), senal }
 | sort category asc`;
 
 /** Resumen ejecutivo: señales por tipo y tier. */

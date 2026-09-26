@@ -1,6 +1,7 @@
 import type { QueryDef, QueryParams } from "./types";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { rangeWindow } from "./analysisWindow";
+import { noneLabel } from "./lang";
 
 /**
  * M9 — Errores críticos (SPEC §4).
@@ -53,7 +54,7 @@ export const errorSeverityBreakdown = (
   params?: QueryParams,
 ): string =>
   `${criticalErrors.build(params)}
-| summarize contenedores = count(), by:{ category = coalesce(${dimension}, "(sin ${dimension})"), severidad }
+| summarize contenedores = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), severidad }
 | sort category asc`;
 
 /** Resumen ejecutivo: errores por tier. */

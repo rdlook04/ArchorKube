@@ -2,13 +2,13 @@ import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
 
-import { dotted, ModulePage } from "../components/ModulePage";
+import { dotted, ModulePage, type ModuleEnglish } from "../components/ModulePage";
 import { ElasticityChart } from "../components/ElasticityChart";
 import { hpaElasticity, hpaElasticitySummary } from "../queries";
 import { assistElasticityPayload, assistElasticityPrompt } from "../queries/assist";
 import { workloadUrl } from "../queries/links";
 import { elasticityPractices } from "../practices/flagged";
-import { RowMenu } from "../components/RowMenu";
+import { RowMenu, WORKLOAD_LINK } from "../components/RowMenu";
 
 /** Menú por fila: el compartido de todos los módulos (ver components/RowMenu). */
 const ElasticityRowMenu = ({ row }: { row: Record<string, unknown> }) => (
@@ -18,7 +18,7 @@ const ElasticityRowMenu = ({ row }: { row: Record<string, unknown> }) => (
     prompt={assistElasticityPrompt}
     assistPayload={assistElasticityPayload}
     practices={elasticityPractices}
-    links={[{ label: "Abrir workload (Kubernetes)", href: workloadUrl(row.deployment_id) }]}
+    links={[{ label: WORKLOAD_LINK, href: workloadUrl(row.deployment_id) }]}
   />
 );
 
@@ -66,8 +66,61 @@ Un HPA **bloqueado** es un servicio que, bajo un pico de tráfico, **no escalar�
 
 *Nota: módulo de disponibilidad/resiliencia; el impacto es riesgo de caída, no un costo mensual, por eso no muestra USD.*`;
 
+const elasticityAboutEn = `## 📊 What the report shows
+
+The state of the cluster's **HorizontalPodAutoscalers (HPA)**, the mechanism that adjusts a workload's replicas to the load. Each row is an HPA classified as:
+
+* **\`BLOQUEADO_NECESITA_MAX\`** (blocked, needs a higher max): the HPA **wants more replicas than its \`maxReplicas\` allows** (condition *TooManyReplicas*). It's capped: it can't absorb more load even when there is some.
+* **\`SIN_MARGEN_MIN_ES_MAX\`** (no headroom, min equals max): \`minReplicas == maxReplicas\`. The HPA exists but **doesn't scale at all**: elasticity is switched off.
+* **\`OK\`:** it has room to scale.
+
+*HPAs are linked to the ownership catalog by name to assign tier/squad.*
+
+---
+
+## ⚠️ Why should I care?
+
+A **blocked** HPA is a service that, under a traffic peak, **won't scale** and will start to degrade or go down exactly when it's needed most. An HPA **without headroom** gives a false sense of elasticity: it looks autoscaled but runs with fixed replicas. In business tiers, both cases are a direct availability risk.
+
+---
+
+## 🛠️ How do I fix it?
+
+1. **\`BLOQUEADO_NECESITA_MAX\`:** **raise \`maxReplicas\`** (checking the nodes have capacity) to give autoscaling a real ceiling.
+2. **\`SIN_MARGEN_MIN_ES_MAX\`:** separate \`min\` and \`max\` to enable elasticity, unless the fixed cap is intentional.
+3. **Check first:** the HPA's target metric (CPU/memory/custom) and the node *pool* capacity to sustain the new maximum.
+
+> 💡 Use **Ask Dynatrace Assist** on each row for a recommended adjustment with the evidence already loaded.
+
+*Note: availability/resilience module; the impact is outage risk, not a monthly cost, so it shows no USD.*`;
+
+const elasticityEn: ModuleEnglish = {
+  title: "HPA elasticity (M5 — Outage risk)",
+  about: elasticityAboutEn,
+  simple: {
+    que: "Applications set up to grow on their own when load rises, but that already hit their maximum or have no room to grow.",
+    porque:
+      "If a traffic peak arrives, those applications can't add more copies: they hold what they can and the rest of the users wait or get errors. The automatic growth mechanism is there, but capped.",
+    accion:
+      "The squad raises the maximum number of copies allowed, or separates the minimum from the maximum so it has room to maneuver. Prioritize the tier 1 ones marked as blocked.",
+  },
+  detailNoun: "HPAs evaluated (blocked first)",
+  headers: {
+    elasticidad: "Elasticity",
+    hpas: "HPAs",
+    hpa_name: "HPA",
+    hpa_min: "Min",
+    hpa_max: "Max",
+    hpa_current: "Current",
+    hpa_desired: "Desired",
+    appCode: "Application",
+  },
+  facets: { elasticidad: "Elasticity" },
+};
+
 export const Elasticity = () => (
   <ModulePage
+    en={elasticityEn}
     title="Elasticidad HPA (M5 — Riesgo de caída)"
     about={elasticityAbout}
     summaryQuery={hpaElasticitySummary}

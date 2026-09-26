@@ -88,7 +88,26 @@ export interface ExecutiveSummary {
   estimacion?: string;
 }
 
+/**
+ * Textos del módulo en inglés. Los props de siempre (title, about, simple,
+ * columnas, facetas) son el español; esta capa los reemplaza cuando el
+ * usuario eligió inglés. Las columnas y facetas se traducen por id, así que
+ * cada página declara solo el mapa id → texto y no duplica su definición.
+ */
+export interface ModuleEnglish {
+  title: string;
+  about?: string;
+  simple?: SimpleExplanation;
+  detailNoun: string;
+  /** Encabezado por id de columna (resumen y detalle). */
+  headers: Record<string, string>;
+  /** Etiqueta por id de faceta; si falta, se usa el encabezado de la columna. */
+  facets?: Record<string, string>;
+}
+
 interface ModulePageProps {
+  /** Textos en inglés (ver ModuleEnglish). */
+  en?: ModuleEnglish;
   title: string;
   intro?: string;
   /** Bloque ejecutivo "por qué importa / cómo se soluciona" (opt-in). */
@@ -129,6 +148,7 @@ interface ModulePageProps {
  * tabla resumen (agrupada por tier/clasificación) y tabla de detalle.
  */
 export const ModulePage = ({
+  en,
   title,
   intro,
   executive,
@@ -145,16 +165,37 @@ export const ModulePage = ({
   rowActions,
   summaryAside,
 }: ModulePageProps) => {
-  const { t, L } = useT();
+  const { t, L, lang } = useT();
+  // En inglés, la capa `en` reemplaza los textos en español de la página.
+  const english = lang === "en" ? en : undefined;
+  const localizeColumns = (columns: DataTableColumnDef<Record<string, unknown>>[]) =>
+    english
+      ? columns.map((column) => {
+          const header = english.headers[column.id];
+          // Las columnas de la app siempre usan un header de texto; sin la
+          // conversión, la unión de tipos de columna no se estrecha con el spread.
+          return header ? ({ ...column, header } as typeof column) : column;
+        })
+      : columns;
+  const shownTitle = english?.title ?? title;
+  const shownSimple = english?.simple ?? simple;
+  const shownAbout = english?.about ?? about;
+  const shownNoun = english?.detailNoun ?? detailNoun;
+  const shownFacets = detailFacets?.map((facet) => ({
+    ...facet,
+    label: english?.facets?.[facet.id] ?? english?.headers[facet.id] ?? facet.label,
+  }));
   const [filters, setFilters] = useState<TierFilterValue>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
   // Momento de la última ejecución, para resolver el rango del badge a horas de reloj.
   const [queriedAt, setQueriedAt] = useState(() => new Date());
   const analysisWindow = detailQuery.window ?? summaryQuery.window;
   // useDql refetchea automáticamente cuando cambia el string de la query.
-  const summary = useDql({ query: summaryQuery.build(filters) });
+  // El idioma viaja con los filtros: algunos textos (motivos, "sin dato") los arma el DQL.
+  const queryParams = { ...filters, lang };
+  const summary = useDql({ query: summaryQuery.build(queryParams) });
   const detail = useDql({
-    query: detailQuery.build(filters),
+    query: detailQuery.build(queryParams),
     maxResultRecords: detailMaxRecords,
   });
 
@@ -178,7 +219,7 @@ export const ModulePage = ({
   return (
     <Flex flexDirection="column" padding={32} gap={16}>
       <Flex justifyContent="space-between" alignItems="center" gap={16} flexWrap="wrap">
-        <Heading level={2}>{title}</Heading>
+        <Heading level={2}>{shownTitle}</Heading>
         <Flex alignItems="center" gap={12}>
           {analysisWindow && (
             <AnalysisWindowBadge window={analysisWindow} queriedAt={queriedAt} />
@@ -195,12 +236,12 @@ export const ModulePage = ({
       >
         <Flex flexDirection="column" gap={12} padding={16}>
           <ModuleAbout
-            simple={simple}
-            about={about ?? buildAboutMarkdown(intro, executive)}
+            simple={shownSimple}
+            about={shownAbout ?? buildAboutMarkdown(intro, executive)}
             window={analysisWindow}
             queries={[
-              { title: L(summaryQuery.title), dql: summaryQuery.build(filters) },
-              { title: L(detailQuery.title), dql: detailQuery.build(filters) },
+              { title: L(summaryQuery.title), dql: summaryQuery.build(queryParams) },
+              { title: L(detailQuery.title), dql: detailQuery.build(queryParams) },
             ]}
           />
         </Flex>
@@ -228,7 +269,12 @@ export const ModulePage = ({
       {summary.data?.records && (
         <Flex gap={16} alignItems="flex-start" flexWrap="wrap">
           <Flex flexDirection="column" style={{ flex: "1 1 480px", minWidth: 0 }}>
-            <DataTable data={summary.data.records} columns={summaryColumns} sortable resizable>
+            <DataTable
+              data={summary.data.records}
+              columns={localizeColumns(summaryColumns)}
+              sortable
+              resizable
+            >
               <DataTable.Toolbar>
                 <DataTable.DownloadData />
               </DataTable.Toolbar>
@@ -252,9 +298,9 @@ export const ModulePage = ({
       )}
       {detail.data?.records && (
         <>
-          {detailFacets && detailRecords.length > 0 && (
+          {shownFacets && detailRecords.length > 0 && (
             <FilterBar onFilterChange={onChange}>
-              {detailFacets.map((facet) => (
+              {shownFacets.map((facet) => (
                 <FilterBar.Item key={facet.id} name={facet.id} label={facet.label}>
                   {/* FilterBar.Item inyecta value/onChange en el Select. */}
                   <Select clearable>
@@ -275,12 +321,12 @@ export const ModulePage = ({
             </FilterBar>
           )}
           <Paragraph>
-            <Strong>{filteredData.length}</Strong> {detailNoun}
+            <Strong>{filteredData.length}</Strong> {shownNoun}
             {filteredData.length !== detailRecords.length && t.module.ofTotal(detailRecords.length)}.
           </Paragraph>
           <DataTable
             data={filteredData}
-            columns={detailColumns}
+            columns={localizeColumns(detailColumns)}
             sortable
             resizable
             fullWidth

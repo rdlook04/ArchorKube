@@ -3,6 +3,7 @@ import { deploymentIdJoin } from "./links";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { snapshotWindow } from "./analysisWindow";
 import { excludedNamespacesClause } from "./namespaces";
+import { noneLabel } from "./lang";
 
 /**
  * M12 — Cumplimiento de estándar AKS (8 SPECs de buenas prácticas).
@@ -140,7 +141,7 @@ export const complianceBreakdown = (
   params?: QueryParams,
 ): string =>
   `${complianceByWorkload(params)}
-| summarize workloads = count(), by:{ category = coalesce(${dimension}, "(sin ${dimension})"), criticidad }
+| summarize workloads = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), criticidad }
 | sort category asc`;
 
 /**

@@ -31,10 +31,10 @@ interface BreakdownRecord {
  * dimensión elegida (tier/squad/tribu).
  */
 export const ElasticityChart = ({ filters }: { filters: TierFilterValue }) => {
-  const { t } = useT();
+  const { t, lang } = useT();
   const c = t.chart;
   const [dimension, setDimension] = useState<BreakdownDimension>("tier");
-  const { data, error, isLoading } = useDql({ query: elasticityBreakdown(dimension, filters) });
+  const { data, error, isLoading } = useDql({ query: elasticityBreakdown(dimension, { ...filters, lang }) });
 
   const chartData = useMemo<CategoricalBarChartData[]>(() => {
     const records = (data?.records ?? []) as BreakdownRecord[];

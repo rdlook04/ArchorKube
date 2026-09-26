@@ -1,10 +1,11 @@
-import type { QueryDef } from "./types";
+import type { QueryDef, QueryParams } from "./types";
 import { deploymentIdJoin } from "./links";
 import { reservedResourcesJoin, USD_GB_MONTH, USD_VCPU_MONTH } from "./costModel";
 import { serviceRequestsJoin } from "./serviceRequests";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { rangeWindow } from "./analysisWindow";
 import { excludedNamespacesClause } from "./namespaces";
+import { noneLabel, qx } from "./lang";
 
 /**
  * Ancho de las bandas de memoria reservada: 0–200 MB, 201–400 MB, y así.
@@ -18,7 +19,9 @@ import { excludedNamespacesClause } from "./namespaces";
 export const MEM_BUCKET_MB = 200;
 
 /** Etiqueta de la banda cuando el workload no declara requests de memoria. */
-export const MEM_RANGE_UNKNOWN = "(sin memoria reservada)";
+/** Banda de quien no declara requests de memoria, en el idioma de la consulta. */
+export const memRangeUnknown = (params?: QueryParams): string =>
+  qx(params, "(no reserved memory)", "(sin memoria reservada)");
 
 /**
  * M3 — Ociosos (SPEC §4), v2 con la "Regla de Oro del workload ocioso":
@@ -69,12 +72,12 @@ ${deploymentIdJoin("`k8s.workload.name`")}
                else: "OCIOSO_CONFIRMADO")))
 | fieldsAdd
     motivo = if(veredicto == "OCIOSO_CONFIRMADO",
-                concat("Solo ", toString(round(coalesce(req_total, 0))), " requests en 7d, CPU max ", toString(cpu_max), " mc, sin OOM ni restarts: candidato real a escalar a cero"),
+                concat("${qx(params, "Only ", "Solo ")}", toString(round(coalesce(req_total, 0))), "${qx(params, " requests in 7d, CPU max ", " requests en 7d, CPU max ")}", toString(cpu_max), "${qx(params, " mc, no OOM or restarts: a real candidate to scale to zero", " mc, sin OOM ni restarts: candidato real a escalar a cero")}"),
              else: if(veredicto == "DESCARTADO_CON_TRAFICO",
-                concat("Atendió ", toString(round(req_total)), " requests en 7d con CPU baja: servicio eficiente, NO ocioso"),
+                concat("${qx(params, "Served ", "Atendió ")}", toString(round(req_total)), "${qx(params, " requests in 7d with low CPU: an efficient service, NOT idle", " requests en 7d con CPU baja: servicio eficiente, NO ocioso")}"),
              else: if(veredicto == "DESCARTADO_INESTABLE",
-                concat("OOM kills=", toString(ooms_7d), ", restarts=", toString(restarts_7d), " en 7d: está roto, no ocioso"),
-             else: concat("Sin servicio APM medible; evidencia solo de CPU (max ", toString(cpu_max), " mc en 7d), confianza media"))))
+                concat("OOM kills=", toString(ooms_7d), ", restarts=", toString(restarts_7d), "${qx(params, " in 7d: it's broken, not idle", " en 7d: está roto, no ocioso")}"),
+             else: concat("${qx(params, "No measurable APM service; CPU-only evidence (max ", "Sin servicio APM medible; evidencia solo de CPU (max ")}", toString(cpu_max), "${qx(params, " mc in 7d), medium confidence", " mc en 7d), confianza media")}"))))
 | fieldsAdd prioridad = if(veredicto == "OCIOSO_CONFIRMADO", 1,
              else: if(veredicto == "OCIOSO_SIN_DATO_APM", 2,
              else: if(veredicto == "DESCARTADO_INESTABLE", 3, else: 4)))
@@ -85,7 +88,7 @@ ${reservedResourcesJoin("`k8s.workload.name`")}
     else: 0.0)
 | fieldsAdd mem_bucket = if(isNull(req_mem_mb) or req_mem_mb <= 0, -1,
              else: toLong(ceil(req_mem_mb / ${MEM_BUCKET_MB})) - 1)
-| fieldsAdd rango_mem = if(mem_bucket < 0, "${MEM_RANGE_UNKNOWN}",
+| fieldsAdd rango_mem = if(mem_bucket < 0, "${memRangeUnknown(params)}",
              else: if(mem_bucket == 0, "0 - ${MEM_BUCKET_MB} MB",
              else: concat(toString(mem_bucket * ${MEM_BUCKET_MB} + 1), " - ", toString(mem_bucket * ${MEM_BUCKET_MB} + ${MEM_BUCKET_MB}), " MB")))
 | fieldsAdd mem_uso_pct = if(mem_bucket < 0, null,
@@ -107,13 +110,12 @@ ${tierLookupJoin("k8s.workload.name")}${tierFilterClause(params)}
 export type BreakdownDimension = "tier" | "squad" | "tribu" | "rango_mem" | "uso_vs_reserva";
 
 /** Etiqueta de la barra cuando la dimensión no tiene valor en esa fila. */
-const BREAKDOWN_FALLBACK: Record<BreakdownDimension, string> = {
-  tier: "(sin tier)",
-  squad: "(sin squad)",
-  tribu: "(sin tribu)",
-  rango_mem: MEM_RANGE_UNKNOWN,
-  uso_vs_reserva: "SIN_RESERVA",
-};
+const breakdownFallback = (dimension: BreakdownDimension, params?: QueryParams): string =>
+  dimension === "rango_mem"
+    ? memRangeUnknown(params)
+    : dimension === "uso_vs_reserva"
+      ? "SIN_RESERVA"
+      : noneLabel(dimension, params);
 
 /**
  * Clave de orden de las barras. Las dimensiones del catálogo se ordenan
@@ -140,7 +142,7 @@ const BREAKDOWN_ORDER: Record<BreakdownDimension, string> = {
  */
 export const idleBreakdown = (dimension: BreakdownDimension, params?: Parameters<typeof idleWorkloads.build>[0]): string =>
   `${idleWorkloads.build(params)}
-| fieldsAdd category = coalesce(${dimension}, "${BREAKDOWN_FALLBACK[dimension]}"), orden = ${BREAKDOWN_ORDER[dimension]}
+| fieldsAdd category = coalesce(${dimension}, "${breakdownFallback(dimension, params)}"), orden = ${BREAKDOWN_ORDER[dimension]}
 | summarize workloads = count(), by:{ category, orden, veredicto }
 | sort orden asc, category asc`;
 

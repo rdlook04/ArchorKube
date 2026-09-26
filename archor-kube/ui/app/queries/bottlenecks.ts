@@ -2,6 +2,7 @@ import type { QueryDef, QueryParams } from "./types";
 import { deploymentIdJoin } from "./links";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { rangeWindow } from "./analysisWindow";
+import { noneLabel } from "./lang";
 
 /**
  * M11 — Cuellos de botella (SPEC §4).
@@ -61,7 +62,7 @@ export const throttlingBreakdown = (
   params?: QueryParams,
 ): string =>
   `${throttlingPeaks.build(params)}
-| summarize workloads = count(), by:{ category = coalesce(${dimension}, "(sin ${dimension})"), severidad }
+| summarize workloads = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), severidad }
 | sort category asc`;
 
 /** Resumen ejecutivo: workloads con throttling por severidad y tier. */

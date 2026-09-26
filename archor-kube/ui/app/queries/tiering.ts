@@ -1,7 +1,8 @@
-import type { QueryDef } from "./types";
+import type { QueryDef, QueryParams } from "./types";
 import { catalogWindow } from "./analysisWindow";
 import { ownership } from "../ownership";
 import { tierLookupJoin } from "./tierJoin";
+import { qx } from "./lang";
 
 /**
  * M7 — Tieraje (SPEC §4).
@@ -64,8 +65,8 @@ export const tierDistribution: QueryDef = {
   title: { en: "Services by tier", es: "Distribución de servicios por tier" },
   description: { en: "Catalog services by tier", es: "Cantidad de servicios del catálogo por tier" },
   window: catalogWindow(SOURCE_NOTE),
-  build: () =>
-    `${INVENTORY}\n| summarize repos = count(), by:{ category = coalesce(tier, "(sin tier)") }\n| sort category asc`,
+  build: (params?: QueryParams) =>
+    `${INVENTORY}\n| summarize repos = count(), by:{ category = coalesce(tier, "${qx(params, "(no tier)", "(sin tier)")}") }\n| sort category asc`,
 };
 
 /** Inventario crudo, útil para diagnóstico del proveedor activo. */

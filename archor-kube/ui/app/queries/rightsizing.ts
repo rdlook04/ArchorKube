@@ -3,6 +3,7 @@ import { deploymentIdJoin } from "./links";
 import { USD_GB_MONTH, USD_VCPU_MONTH } from "./costModel";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { rangeWindow } from "./analysisWindow";
+import { noneLabel } from "./lang";
 
 /**
  * M1/M2 — Rightsizing CPU y Memoria (SPEC §4).
@@ -129,7 +130,7 @@ export const rightsizingBreakdown = (
   params?: QueryParams,
 ): string =>
   `${rightsizingReport.build(params)}
-| summarize pods = count(), by:{ category = coalesce(${dimension}, "(sin ${dimension})"), problema }
+| summarize pods = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), problema }
 | sort category asc`;
 
 /** Resumen ejecutivo: pods con hallazgo por problema y tier, con slack valorizado. */

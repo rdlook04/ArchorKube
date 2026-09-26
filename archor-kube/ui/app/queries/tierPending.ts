@@ -2,6 +2,7 @@ import type { QueryDef, QueryParams } from "./types";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { snapshotWindow } from "./analysisWindow";
 import { excludedNamespacesClause } from "./namespaces";
+import { qx } from "./lang";
 
 /**
  * M7 — Pendientes de tieraje.
@@ -53,7 +54,7 @@ export const tierPendingBySquad: QueryDef = {
   build: (params?: QueryParams) => `${PENDING_BASE(params)}
 | summarize pendientes = count(),
     sin_dueno = countIf(motivo == "FALTA_DUENO"),
-    by:{ squad = coalesce(squad, "(sin dueño)"), tribu = coalesce(tribu, "—") }
+    by:{ squad = coalesce(squad, "${qx(params, "(no owner)", "(sin dueño)")}"), tribu = coalesce(tribu, "—") }
 | sort pendientes desc`,
 };
 
@@ -91,6 +92,6 @@ export const tierPendingBreakdown = (
   window: WINDOW,
   build: (params?: QueryParams) => `${PENDING_BASE(params)}
 | summarize workloads = count(),
-    by:{ category = coalesce(${dimension}, "(sin dato)"), motivo }
+    by:{ category = coalesce(${dimension}, "${qx(params, "(no data)", "(sin dato)")}"), motivo }
 | sort workloads desc`,
 });

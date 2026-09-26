@@ -2,12 +2,12 @@ import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
 
-import { dotted, ModulePage } from "../components/ModulePage";
+import { dotted, ModulePage, type ModuleEnglish } from "../components/ModulePage";
 import { NodeSaturationChart } from "../components/NodeSaturationChart";
 import { throttlingPeaks, throttlingSummary } from "../queries";
 import { assistThrottlePayload, assistThrottlePrompt } from "../queries/assist";
 import { workloadUrl } from "../queries/links";
-import { RowMenu } from "../components/RowMenu";
+import { RowMenu, WORKLOAD_LINK } from "../components/RowMenu";
 
 /** Menú por fila: el compartido de todos los módulos (ver components/RowMenu). */
 const BottlenecksRowMenu = ({ row }: { row: Record<string, unknown> }) => (
@@ -16,7 +16,7 @@ const BottlenecksRowMenu = ({ row }: { row: Record<string, unknown> }) => (
     module="Bottlenecks"
     prompt={assistThrottlePrompt}
     assistPayload={assistThrottlePayload}
-    links={[{ label: "Abrir workload (Kubernetes)", href: workloadUrl(row.deployment_id) }]}
+    links={[{ label: WORKLOAD_LINK, href: workloadUrl(row.deployment_id) }]}
   />
 );
 
@@ -62,8 +62,57 @@ El *throttling* significa que el workload **quiere más CPU de la que su límite
 
 *Nota: módulo de rendimiento; el impacto es latencia/degradación, no un costo mensual, por eso no muestra USD.*`;
 
+const bottlenecksAboutEn = `## 📊 What the report shows
+
+Two angles of resource saturation:
+
+**Table (workloads with CPU throttling).** Each row is a workload whose **peak** *CPU throttling* over 24h exceeds **25%** of its CPU limit. The peak is used instead of the average on purpose: bottlenecks are **intermittent** and the average hides them. The peak sets the severity: **\`SEVERO\`** (severe, ≥100%), **\`ALTO\`** (high, ≥50%), **\`MODERADO\`** (moderate, >25%).
+
+**Chart (node saturation).** Beside it, the nodes whose **host** CPU or memory usage exceeds 80% (metric \`dt.host.*\`, because \`dt.kubernetes.node.*_used\` doesn't exist in this environment).
+
+---
+
+## ⚠️ Why should I care?
+
+*Throttling* means the workload **wants more CPU than its limit allows**: it performs below its capacity and builds up latency, even when the node has CPU to spare. It's a silent degradation that hurts the experience without causing a visible outage. A saturated node, on the other hand, threatens **every** pod it hosts.
+
+---
+
+## 🛠️ How do I fix it?
+
+1. **Throttling:** **raise (or remove) the container's \`limits.cpu\`** if the node has room, or **scale horizontally with an HPA** if the load is sustained.
+2. **Check first:** confirm whether the peak matches startup or a *batch* (acceptable) or is continuous real load; check whether an HPA is already active.
+3. **Saturated nodes:** spread the load or add capacity to the *pool*.
+
+> 💡 Use **Ask Dynatrace Assist** on each row for an adjustment plan with the evidence already loaded.
+
+*Note: performance module; the impact is latency/degradation, not a monthly cost, so it shows no USD.*`;
+
+const bottlenecksEn: ModuleEnglish = {
+  title: "Bottlenecks (M11 — Throttling and saturation)",
+  about: bottlenecksAboutEn,
+  simple: {
+    que: "Applications the system is slowing down on purpose because they want more CPU than their cap allows, and machines running at the limit of their capacity.",
+    porque:
+      "Throttling feels like slowness: the application works, but answers late. It's one of the problems that bothers users most and gets detected least, because nothing goes down or throws an error.",
+    accion:
+      "The squad raises the CPU cap of the throttled application, or removes the cap if its load is irregular. First, tell whether the peak was a one-off process or the throttling is constant.",
+  },
+  detailNoun: "workloads with peak throttling (severe first)",
+  headers: {
+    severidad: "Severity",
+    workloads: "Workloads",
+    peak_max_pct: "Max peak %",
+    limit_avg: "CPU limit (mc)",
+    throttle_peak: "Peak throttle (mc)",
+    throttle_peak_pct: "Peak vs limit % (threshold 25)",
+  },
+  facets: { severidad: "Severity" },
+};
+
 export const Bottlenecks = () => (
   <ModulePage
+    en={bottlenecksEn}
     title="Cuellos de botella (M11 — Throttling y saturación)"
     about={bottlenecksAbout}
     summaryQuery={throttlingSummary}

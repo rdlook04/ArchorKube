@@ -2,6 +2,7 @@ import type { QueryDef, QueryParams } from "./types";
 import { deploymentIdJoin } from "./links";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { snapshotWindow } from "./analysisWindow";
+import { noneLabel } from "./lang";
 
 /**
  * M5 (parcial) — Elasticidad HPA (SPEC §4, riesgo de caída).
@@ -72,7 +73,7 @@ export const elasticityBreakdown = (
   params?: QueryParams,
 ): string =>
   `${hpaElasticity.build(params)}
-| summarize hpas = count(), by:{ category = coalesce(${dimension}, "(sin ${dimension})"), elasticidad }
+| summarize hpas = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), elasticidad }
 | sort category asc`;
 
 /** Resumen ejecutivo: HPAs por elasticidad y tier. */

@@ -2,6 +2,7 @@ import type { QueryDef, QueryParams } from "./types";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { snapshotWindow } from "./analysisWindow";
 import { excludedNamespacesClause } from "./namespaces";
+import { noneLabel } from "./lang";
 
 /**
  * M6 — Huérfanos (SPEC §4).
@@ -51,7 +52,7 @@ export const orphanBreakdown = (
   params?: QueryParams,
 ): string =>
   `${orphanWorkloads.build(params)}
-| summarize workloads = count(), by:{ category = coalesce(${dimension}, "(sin ${dimension})"), motivo }
+| summarize workloads = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), motivo }
 | sort category asc`;
 
 /** Resumen ejecutivo: huérfanos por motivo. */

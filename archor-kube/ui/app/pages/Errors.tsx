@@ -2,7 +2,7 @@ import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
 
-import { dotted, ModulePage } from "../components/ModulePage";
+import { dotted, ModulePage, type ModuleEnglish } from "../components/ModulePage";
 import { ErrorSeverityChart } from "../components/ErrorSeverityChart";
 import { criticalErrors, criticalErrorsSummary } from "../queries";
 import { assistErrorPayload, assistErrorPrompt } from "../queries/assist";
@@ -73,8 +73,61 @@ Un volumen alto de errores es **deuda de observabilidad y riesgo latente**: esco
 
 *Nota: módulo de calidad/observabilidad, no de consumo; no muestra pérdida en USD.*`;
 
+const errorsAboutEn = `## 📊 What the report shows
+
+The **300 noisiest containers** by error logs over the **last 24 hours**. Each row counts:
+
+* **Errors:** lines at level \`ERROR\`, \`CRITICAL\`, \`EMERGENCY\`, \`SEVERE\` or \`FATAL\`.
+* **Criticals:** the subset worse than \`ERROR\` (serious failures that almost always need action).
+
+That sets the **severity**: **\`CON_CRITICOS\`** (has at least one critical) or **\`SOLO_ERRORES\`** (errors only).
+
+*In this environment logs don't carry \`k8s.workload.name\`, so rows are grouped by \`k8s.container.name\`, which also matches the ownership catalog to assign tier/squad.*
+
+---
+
+## ⚠️ Why should I care?
+
+A high volume of errors is **observability debt and latent risk**: it hides real failures in noise, fills log storage and usually comes before incidents. The \`CON_CRITICOS\` ones in business tiers are the ones to look at first.
+
+---
+
+## 🛠️ How do I fix it?
+
+1. **Prioritize \`CON_CRITICOS\` by tier:** start with the critical services that have serious failures.
+2. **Sort the noise:** separate expected errors (retries, client 4xx) from real failures (exceptions, timeouts, 5xx, dependencies down) and silence or fix accordingly.
+3. **Go after the root cause:** use Assist to read the container's log patterns and decide the next step.
+
+> 💡 Use **Ask Dynatrace Assist** on each row to investigate the container's logs with the context already loaded.
+
+*Note: quality/observability module, not a consumption one; it shows no loss in USD.*`;
+
+const errorsEn: ModuleEnglish = {
+  title: "Critical errors (M9 — Logs 24h)",
+  about: errorsAboutEn,
+  simple: {
+    que: "The applications writing the most error messages in their logs over the last day.",
+    porque:
+      "A high volume of errors usually comes before a failure users will see. The ones marked critical or fatal are already real failures, not noise.",
+    accion:
+      "The owning squad checks the ones with criticals first. Careful: a lot of volume isn't always serious; some applications log expected errors and make noise. What matters is the criticals column.",
+  },
+  detailNoun: "containers with errors (with criticals first)",
+  headers: {
+    contenedores: "Containers",
+    errores_total: "Errors",
+    criticos_total: "Criticals",
+    container: "Container",
+    severidad: "Severity",
+    errores: "Errors 24h",
+    criticos: "Criticals 24h",
+  },
+  facets: { severidad: "Severity" },
+};
+
 export const Errors = () => (
   <ModulePage
+    en={errorsEn}
     title="Errores críticos (M9 — Logs 24h)"
     about={errorsAbout}
     summaryQuery={criticalErrorsSummary}

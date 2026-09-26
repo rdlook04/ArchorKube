@@ -2,13 +2,13 @@ import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
 
-import { dotted, ModulePage } from "../components/ModulePage";
+import { dotted, ModulePage, type ModuleEnglish } from "../components/ModulePage";
 import { IdleVerdictChart } from "../components/IdleVerdictChart";
 import { idleSummary, idleWorkloads } from "../queries";
 import { assistIdlePayload, assistIdlePrompt } from "../queries/assist";
 import { serviceUrl, workloadUrl } from "../queries/links";
 import { idlePractices } from "../practices/flagged";
-import { RowMenu } from "../components/RowMenu";
+import { RowMenu, SERVICE_LINK, WORKLOAD_LINK } from "../components/RowMenu";
 
 /** Menú por fila: el compartido de todos los módulos (ver components/RowMenu). */
 const IdleRowMenu = ({ row }: { row: Record<string, unknown> }) => (
@@ -19,8 +19,8 @@ const IdleRowMenu = ({ row }: { row: Record<string, unknown> }) => (
     assistPayload={assistIdlePayload}
     practices={idlePractices}
     links={[
-      { label: "Abrir servicio (APM)", href: serviceUrl(row.service_id) },
-      { label: "Abrir workload (Kubernetes)", href: workloadUrl(row.deployment_id) },
+      { label: SERVICE_LINK, href: serviceUrl(row.service_id) },
+      { label: WORKLOAD_LINK, href: workloadUrl(row.deployment_id) },
     ]}
   />
 );
@@ -147,8 +147,106 @@ La solución consiste en **configurar el escalado a cero** (mediante herramienta
 >
 > *Este cálculo está basado en el costo de un nodo AKS Dv5 prorrateado. Su objetivo es dar un **orden de magnitud para priorizar esfuerzos**, no representar una facturación exacta al centavo.*`;
 
+const idleAboutEn = `## 📊 What the report shows
+
+For a service to count as **truly idle**, it has to meet these three conditions for 7 days in a row:
+
+1. **No business traffic:** 10 or fewer *requests* recorded in APM.
+2. **No instability:** no *OOM (Out of Memory) kills* or restart loops. If the service keeps crashing, it's broken, not idle.
+3. **CPU usage close to 0**, sustained.
+
+Depending on those factors, each service gets one of these verdicts:
+
+* **\`OCIOSO_CONFIRMADO\`** (confirmed idle): it meets all three conditions. An ideal, safe candidate to scale to zero.
+* **\`OCIOSO_SIN_DATO_APM\`** (idle, no APM data): it has no measurable traffic in APM (for example *jobs* or non-instrumented apps), so inactivity is assumed from low CPU only.
+* **\`DESCARTADO_CON_TRAFICO\`** (ruled out, has traffic): it serves requests but keeps CPU low. An efficient service, not an idle one.
+* **\`DESCARTADO_INESTABLE\`** (ruled out, unstable): the pod keeps restarting or dies from lack of memory.
+
+*Note: the **Reason** column lists the specific evidence behind each row's verdict.*
+
+### Reserved memory bands
+
+Each workload falls into a 200 MB band based on the memory it **reserves** (\`requests\`), not the memory it uses: 0 – 200 MB, 201 – 400 MB, and so on. The reservation is what gets paid for and what the *scheduler* blocks on the node, even if the pod never touches it.
+
+The **Usage vs. reservation** column compares the real 7-day average usage against that reservation:
+
+* **\`POR_ENCIMA\`** (over 100%): it uses more than it asked for. It works thanks to spare memory on the node, but it's the first candidate for eviction when the node gets tight.
+* **\`AL_LIMITE\`** (85–100%): the reservation is well sized, with no spare margin.
+* **\`AJUSTADO\`** (50–85%): it uses most of what it reserved.
+* **\`HOLGADO\`** (under 50%): more than half of the reservation is never used. This is the band where the recoverable money lives.
+* **\`SIN_RESERVA\`**: the manifest declares no memory *requests*. There's nothing to compare against, and it also breaks the AKS standard (see the Compliance module).
+
+---
+
+## ⚠️ Why should I care?
+
+These services record **zero business traffic** (fewer than 10 requests a week) but keep critical cluster resources locked up (for example, more than 700 MB of memory per *pod* at all times).
+
+That has a direct negative impact:
+* **It makes the infrastructure more expensive:** the monthly bill grows for resources that give users no value.
+* **It blocks useful resources:** it takes node space that could be used to scale the applications that are under real load.
+
+*Note: the **Loss/month** column shows how much each individual service costs. The overall summary totals that spend by verdict and tier.*
+
+---
+
+## 🛠️ How do I fix it?
+
+The fix is to **configure scale-to-zero** (with tools like **KEDA** or the Kubernetes **HPA**). It's a quick change in the manifests that lets the service "wake up" only when there's real demand.
+
+**Recommended approach:**
+1. **Act first:** apply scale-to-zero right away to the \`OCIOSO_CONFIRMADO\` ones, since they have full evidence of inactivity.
+2. **Review and confirm:** go through the \`OCIOSO_SIN_DATO_APM\` cases with the owning *squad* before acting, to make sure there are no processes APM can't see.
+
+---
+
+> 💡 **Methodology: how was the money (Loss/month) estimated?**
+>
+> The cost uses the reserved CPU and memory (the current *requests* in the manifest; if they aren't defined, the real usage). Those resources are valued at:
+> * **20 USD** per vCPU per month.
+> * **4 USD** per GB of RAM per month.
+>
+> *This estimate is based on the prorated cost of an AKS Dv5 node. Its goal is to give an **order of magnitude to prioritize effort**, not an exact bill to the cent.*`;
+
+const idleEn: ModuleEnglish = {
+  title: "Idle (M3 — the idle workload golden rule)",
+  about: idleAboutEn,
+  simple: {
+    que: "Applications that have gone a whole week without receiving traffic or doing any work: they're on, but nobody uses them.",
+    porque:
+      "Their whole CPU and memory reservation is paid for in exchange for nothing. They're usually tests left running, replaced services or forgotten environments.",
+    accion:
+      "The owning squad confirms whether they're still needed. If not, they're turned off or left at zero copies. If they're needed only now and then, they're set up to start on demand.",
+  },
+  detailNoun: "candidates evaluated by the golden rule (confirmed first)",
+  headers: {
+    veredicto: "Verdict",
+    workloads: "Workloads",
+    perdida_mes_usd: "Loss/month (USD)",
+    motivo: "Reason (evidence)",
+    req_total: "Requests 7d",
+    req_cpu_mc: "Reserved CPU (mc)",
+    req_mem_mb: "Reserved MEM (MB)",
+    rango_mem: "Reserved MEM range",
+    cpu_avg: "CPU avg (mc, threshold 5)",
+    cpu_max: "CPU max (mc, threshold 20)",
+    mem_avg_mb: "MEM avg (MB)",
+    mem_uso_pct: "Usage vs. reservation (%)",
+    uso_vs_reserva: "Usage vs. reservation",
+    restarts_7d: "Restarts 7d",
+    ooms_7d: "OOM 7d",
+  },
+  facets: {
+    veredicto: "Verdict",
+    motivo: "Reason",
+    rango_mem: "Reserved MEM range",
+    uso_vs_reserva: "Usage vs. reservation",
+  },
+};
+
 export const Idle = () => (
   <ModulePage
+    en={idleEn}
     title="Ociosos (M3 — Regla de Oro del workload ocioso)"
     about={idleAbout}
     summaryQuery={idleSummary}

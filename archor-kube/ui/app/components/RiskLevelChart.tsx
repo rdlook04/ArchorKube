@@ -32,10 +32,10 @@ interface BreakdownRecord {
  * segmento, un nivel con su color semántico.
  */
 export const RiskLevelChart = ({ filters }: { filters: TierFilterValue }) => {
-  const { t } = useT();
+  const { t, lang } = useT();
   const c = t.chart;
   const [dimension, setDimension] = useState<BreakdownDimension>("tier");
-  const { data, error, isLoading } = useDql({ query: riskBreakdown(dimension, filters) });
+  const { data, error, isLoading } = useDql({ query: riskBreakdown(dimension, { ...filters, lang }) });
 
   const chartData = useMemo<CategoricalBarChartData[]>(() => {
     const records = (data?.records ?? []) as BreakdownRecord[];

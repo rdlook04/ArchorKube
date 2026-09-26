@@ -34,10 +34,10 @@ interface BreakdownRecord {
  * segmento, un tipo de problema con su color semántico.
  */
 export const RightsizingProblemChart = ({ filters }: { filters: TierFilterValue }) => {
-  const { t } = useT();
+  const { t, lang } = useT();
   const c = t.chart;
   const [dimension, setDimension] = useState<BreakdownDimension>("tier");
-  const { data, error, isLoading } = useDql({ query: rightsizingBreakdown(dimension, filters) });
+  const { data, error, isLoading } = useDql({ query: rightsizingBreakdown(dimension, { ...filters, lang }) });
 
   const chartData = useMemo<CategoricalBarChartData[]>(() => {
     const records = (data?.records ?? []) as BreakdownRecord[];

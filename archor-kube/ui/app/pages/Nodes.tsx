@@ -2,7 +2,7 @@ import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
 
-import { dotted, ModulePage } from "../components/ModulePage";
+import { dotted, ModulePage, type ModuleEnglish } from "../components/ModulePage";
 import { NodeActionChart } from "../components/NodeActionChart";
 import { nodeRightsizing, nodeRightsizingSummary } from "../queries";
 import { assistNodePayload, assistNodePrompt } from "../queries/assist";
@@ -62,8 +62,68 @@ Un nodo subutilizado **factura completo** —CPU y memoria asignables— aunque 
 
 > 💡 **Ahorro/mes:** capacidad ociosa (CPU cores × 20 USD + MEM GB × 4 USD al mes, AKS Dv5 prorrateado). Orden de magnitud para priorizar, no facturación exacta.`;
 
+const nodesAboutEn = `## 📊 What the report shows
+
+Each row is a **node** with **pod density < 30%** (little real occupancy) and a suggested action based on the cluster's context:
+
+* **\`CANDIDATO_ELIMINAR\`** (candidate to remove): the cluster has **more nodes than the minimum needed** to run all its pods, and this node is almost empty (density < 5%). It can be removed.
+* **\`CONSOLIDAR_SI_ES_POSIBLE\`** (consolidate if possible): density < 15%. Its pods **probably fit on other nodes**; consolidate and free it.
+* **\`MONITOREAR\`** (monitor): underused (< 30%) but without a clear margin for action yet.
+
+*Density is running pods ÷ allocatable pods. The "minimum nodes" calculation groups by node before adding up (otherwise the cluster total came out as 1 and there were never candidates).*
+
+---
+
+## ⚠️ Why should I care?
+
+An underused node **is billed in full** (its allocatable CPU and memory) even if it hosts almost no pods. The **Savings/month** column values that idle capacity: it's money recovered by consolidating and turning off spare nodes. In a cluster with several nodes at 16-30%, the combined savings are usually significant.
+
+---
+
+## 🛠️ How do I fix it?
+
+1. **\`CANDIDATO_ELIMINAR\`:** *cordon* + *drain* the node and remove it (or let the **cluster-autoscaler** do it when load drops).
+2. **\`CONSOLIDAR_SI_ES_POSIBLE\`:** review *affinities*, *taints* and **PodDisruptionBudgets** to relocate the pods and empty the node.
+3. **Check first:** that there are no pinned workloads (DaemonSets, local storage, singletons) and that the autoscaler has the right limits.
+
+> 💡 Use **Ask Dynatrace Assist** on each row for a consolidation plan with the evidence already loaded.
+
+> 💡 **Savings/month:** idle capacity (CPU cores × 20 USD + MEM GB × 4 USD per month, prorated AKS Dv5). An order of magnitude to prioritize, not an exact bill.`;
+
+const nodesEn: ModuleEnglish = {
+  title: "Nodes (M4 — Density and consolidation)",
+  about: nodesAboutEn,
+  simple: {
+    que: "The cluster's machines that are half empty: they have free capacity no application asked for.",
+    porque:
+      "Each machine is paid for in full, whether it's full or empty. If several are at half capacity, you're paying for servers that could be consolidated into fewer.",
+    accion:
+      "Infrastructure evaluates turning off the machines marked for removal or spreading their applications over fewer servers. Before removing one, it has to be emptied in an orderly way, confirming the applications fit on the ones left.",
+  },
+  detailNoun: "underused nodes (candidates to remove first)",
+  headers: {
+    accion: "Action",
+    nodos: "Nodes",
+    ahorro_mes_usd: "Savings/month (USD)",
+    cpu_idle_total: "Idle CPU (cores)",
+    mem_idle_total_gb: "Idle MEM (GB)",
+    node: "Node",
+    pod_density_pct: "Pod density % (threshold 30)",
+    pods_running_avg: "Pods",
+    pods_max_avg: "Max pods",
+    cpu_alloc_cores: "Allocatable CPU (cores)",
+    cpu_idle_pct: "Idle CPU %",
+    mem_alloc_gb: "Allocatable MEM (GB)",
+    mem_idle_pct: "Idle MEM %",
+    cluster_nodos: "Cluster nodes",
+    nodos_minimos_cluster: "Minimum nodes",
+  },
+  facets: { accion: "Action", "k8s.cluster.name": "Cluster" },
+};
+
 export const Nodes = () => (
   <ModulePage
+    en={nodesEn}
     title="Nodos (M4 — Densidad y consolidación)"
     about={nodesAbout}
     summaryQuery={nodeRightsizingSummary}

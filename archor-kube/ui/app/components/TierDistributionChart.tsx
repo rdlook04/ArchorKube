@@ -25,9 +25,9 @@ interface DistRecord {
  * Dimensión fija (tier); es un catálogo, no un módulo de hallazgos.
  */
 export const TierDistributionChart = () => {
-  const { t } = useT();
+  const { t, lang } = useT();
   const c = t.chart;
-  const { data, error, isLoading } = useDql({ query: tierDistribution.build() });
+  const { data, error, isLoading } = useDql({ query: tierDistribution.build({ lang }) });
 
   const chartData = useMemo<CategoricalBarChartData[]>(() => {
     const records = (data?.records ?? []) as DistRecord[];

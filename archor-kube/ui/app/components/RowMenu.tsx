@@ -7,13 +7,21 @@ import { DotMenuIcon } from "@dynatrace/strato-icons";
 
 import { useExternalSend } from "../ai/useExternalSend";
 import { useT } from "../i18n";
+import type { Localized } from "../i18n";
 import { useOpenGuide } from "../practices/flagged";
 import { ASSIST_INTENT_OPTIONS } from "../queries/assist";
 
 type Row = Record<string, unknown>;
 
+/** Etiquetas de los deep links que se repiten en casi todos los módulos. */
+export const WORKLOAD_LINK: Localized = {
+  en: "Open workload (Kubernetes)",
+  es: "Abrir workload (Kubernetes)",
+};
+export const SERVICE_LINK: Localized = { en: "Open service (APM)", es: "Abrir servicio (APM)" };
+
 export interface RowMenuLink {
-  label: string;
+  label: Localized;
   /** null deshabilita el link (el dato no vino en la fila). */
   href: string | null;
 }
@@ -45,7 +53,7 @@ interface RowMenuProps {
  * copiar la fila completa al portapapeles era una salida sin filtro.
  */
 export const RowMenu = ({ row, module, prompt, assistPayload, practices, links }: RowMenuProps) => {
-  const { t } = useT();
+  const { t, L } = useT();
   const openGuide = useOpenGuide();
   const sendExternal = useExternalSend(prompt, module);
   const flagged = practices ? practices(row) : null;
@@ -72,12 +80,12 @@ export const RowMenu = ({ row, module, prompt, assistPayload, practices, links }
         </Menu.Item>
         {links?.map((link) => (
           <Menu.Link
-            key={link.label}
+            key={link.label.en}
             href={link.href ?? undefined}
             target="_blank"
             disabled={!link.href}
           >
-            {link.label}
+            {L(link.label)}
           </Menu.Link>
         ))}
       </Menu.Content>

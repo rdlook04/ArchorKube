@@ -2,13 +2,13 @@ import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
 
-import { dotted, ModulePage } from "../components/ModulePage";
+import { dotted, ModulePage, type ModuleEnglish } from "../components/ModulePage";
 import { OrphanReasonChart } from "../components/OrphanReasonChart";
 import { orphanSummary, orphanWorkloads } from "../queries";
 import { assistOrphanPayload, assistOrphanPrompt } from "../queries/assist";
 import { workloadUrl } from "../queries/links";
 import { orphanPractices } from "../practices/flagged";
-import { RowMenu } from "../components/RowMenu";
+import { RowMenu, WORKLOAD_LINK } from "../components/RowMenu";
 
 /** Menú por fila: el compartido de todos los módulos (ver components/RowMenu). */
 const OrphansRowMenu = ({ row }: { row: Record<string, unknown> }) => (
@@ -18,7 +18,7 @@ const OrphansRowMenu = ({ row }: { row: Record<string, unknown> }) => (
     prompt={assistOrphanPrompt}
     assistPayload={assistOrphanPayload}
     practices={orphanPractices}
-    links={[{ label: "Abrir workload (Kubernetes)", href: workloadUrl(row.deployment_id) }]}
+    links={[{ label: WORKLOAD_LINK, href: workloadUrl(row.deployment_id) }]}
   />
 );
 
@@ -64,8 +64,56 @@ Los huérfanos **degradan la gobernanza** del clúster: inflan el inventario, en
 
 *Nota: este módulo es de gobernanza, no de consumo, por eso no muestra pérdida en USD ni barras de uso.*`;
 
+const orphanAboutEn = `## 📊 What the report shows
+
+Each row is an **orphan workload**: a *Deployment* or *StatefulSet* still defined in the cluster that fits one of these two cases:
+
+* **\`REPLICAS_0\`:** it's **scaled to zero** (0 replicas). The manifest is still there but nothing runs: it takes up inventory, shows up in dashboards and confuses whoever audits.
+* **\`SIN_DUENO\`** (no owner): it's **running but its name isn't in the ownership catalog**, so it has no identifiable organizational owner (tier/squad). Nobody answers for it.
+
+*Infrastructure namespaces (kube-system, dynatrace, etc.) are excluded.*
+
+---
+
+## ⚠️ Why should I care?
+
+Orphans **erode the cluster's governance**: they inflate the inventory, clutter the reports of the other modules and, for \`SIN_DUENO\`, are workloads **with nobody responsible**: if they fail or cost money, there's no one to escalate to. Cleaning them up reduces noise and risk surface.
+
+---
+
+## 🛠️ How do I fix it?
+
+1. **\`REPLICAS_0\`:** confirm with the *squad* whether scaling to zero is intentional (a temporary pause) or was forgotten; if it's the latter, **delete the manifest**.
+2. **\`SIN_DUENO\`:** find out who deployed it and **register it in the ownership catalog** (assign tier/squad), or remove it if nobody claims it.
+
+> 💡 Use **Ask Dynatrace Assist** on each row: it checks whether it's a legitimate *job*, whether there are dependencies or persistent data, and whether it's safe to remove.
+
+*Note: this is a governance module, not a consumption one, so it shows no loss in USD or usage bars.*`;
+
+const orphanEn: ModuleEnglish = {
+  title: "Orphans (M6 — No replicas or no owner)",
+  about: orphanAboutEn,
+  simple: {
+    que: "Things left loose: applications defined but turned off, and running applications that aren't in the organization's catalog.",
+    porque:
+      "The turned-off ones clutter the inventory and confuse whoever reviews. The ones missing from the catalog are worse: nobody knows whose they are, so if they fail there's no one to tell, and none of the other modules can prioritize them.",
+    accion:
+      "The turned-off ones get deleted if nobody needs them anymore. The ones missing from the catalog have to be registered in it with an owning team.",
+  },
+  detailNoun: "orphan workloads (scaled to 0 first)",
+  headers: {
+    motivo: "Reason",
+    workloads: "Workloads",
+    kind: "Kind",
+    tribu: "Tribe",
+    replicas: "Replicas",
+  },
+  facets: { motivo: "Reason" },
+};
+
 export const Orphans = () => (
   <ModulePage
+    en={orphanEn}
     title="Huérfanos (M6 — Sin réplicas o sin dueño)"
     about={orphanAbout}
     summaryQuery={orphanSummary}

@@ -2,7 +2,7 @@ import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
 
-import { dotted, ModulePage } from "../components/ModulePage";
+import { dotted, ModulePage, type ModuleEnglish } from "../components/ModulePage";
 import { NodeHealthChart } from "../components/NodeHealthChart";
 import { nodeConditions, nodeHealthSummary } from "../queries";
 import { assistNodeConditionPayload, assistNodeConditionPrompt } from "../queries/assist";
@@ -53,8 +53,58 @@ Un nodo con presión de recursos **desaloja pods** para protegerse, y uno *Not R
 
 *Nota: módulo de infraestructura a nivel nodo; no tiene tier/squad ni pérdida en USD.*`;
 
+const controlPlaneAboutEn = `## 📊 What the report shows
+
+Node health, which in **AKS** is the window available into the control plane (the *control plane* itself, API server, etcd and scheduler, is managed by Azure and not exposed).
+
+* **Summary and chart:** **Ready** vs **Not Ready** nodes by cluster. A *Ready* node accepts pods; a *Not Ready* one doesn't, and its pods get rescheduled elsewhere.
+* **Detail:** only the **problem conditions** reported by kubelet / node-problem-detector: \`Ready≠True\`, \`MemoryPressure\`, \`DiskPressure\`, \`PIDPressure\`, \`KernelDeadlock\`, etc. **If it's empty, every node is healthy.**
+
+---
+
+## ⚠️ Why should I care?
+
+A node under resource pressure **evicts pods** to protect itself, and a *Not Ready* one takes all its capacity out of circulation at once. These conditions are infrastructure signals that, if ignored, become outages of the services they host.
+
+---
+
+## 🛠️ How do I fix it?
+
+1. **\`MemoryPressure\` / \`DiskPressure\`:** free or expand host resources (clean up images/logs, grow the disk, check workloads using too much).
+2. **\`Ready≠True\`:** *cordon/drain* the node, check kubelet and the host state; if it doesn't recover, replace it.
+3. **Recurring pressure:** adjust the *cluster-autoscaler* or the size of the node *pool*.
+
+> 💡 Use **Ask Dynatrace Assist** on each condition for a diagnosis with the evidence already loaded.
+
+*Note: node-level infrastructure module; it has no tier/squad or loss in USD.*`;
+
+const controlPlaneEn: ModuleEnglish = {
+  title: "Control plane (M10 — Node health)",
+  about: controlPlaneAboutEn,
+  simple: {
+    que: "The health of the cluster's machines: which ones aren't responding or are struggling for lack of memory, disk or processes.",
+    porque:
+      "A sick machine drags down every application running on it. It's one of the few problems that hits several teams at once without any of them doing anything wrong.",
+    accion:
+      "It's infrastructure's job, not the squads'. Normally this table is empty: if something shows up, it has to be handled the same day.",
+  },
+  detailNoun: "problem conditions (empty = all healthy)",
+  headers: {
+    nodos: "Nodes",
+    nodos_ready: "Ready",
+    nodos_not_ready: "Not Ready",
+    node: "Node",
+    condicion: "Condition",
+    estado: "Status",
+    razon: "Reason",
+    mensaje: "Message",
+  },
+  facets: { condicion: "Condition", "k8s.cluster.name": "Cluster" },
+};
+
 export const ControlPlane = () => (
   <ModulePage
+    en={controlPlaneEn}
     title="Control plane (M10 — Salud de nodos)"
     about={controlPlaneAbout}
     summaryQuery={nodeHealthSummary}

@@ -3,6 +3,7 @@ import { deploymentIdJoin } from "./links";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { snapshotWindow } from "./analysisWindow";
 import { excludedNamespacesClause } from "./namespaces";
+import { noneLabel } from "./lang";
 
 /**
  * M5 — Riesgo de caída por workload (SPEC §4).
@@ -70,7 +71,7 @@ export const riskBreakdown = (
   params?: QueryParams,
 ): string =>
   `${workloadRisk.build(params)}
-| summarize workloads = count(), by:{ category = coalesce(${dimension}, "(sin ${dimension})"), nivel }
+| summarize workloads = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), nivel }
 | sort category asc`;
 
 /** Resumen ejecutivo: workloads por score de riesgo y tier. */

@@ -2,13 +2,13 @@ import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
 
-import { dotted, ModulePage } from "../components/ModulePage";
+import { dotted, ModulePage, type ModuleEnglish } from "../components/ModulePage";
 import { PreventiveSignalChart } from "../components/PreventiveSignalChart";
 import { preventiveSignals, preventiveSummary } from "../queries";
 import { assistPreventivePayload, assistPreventivePrompt } from "../queries/assist";
 import { workloadUrl } from "../queries/links";
 import { preventivePractices } from "../practices/flagged";
-import { RowMenu } from "../components/RowMenu";
+import { RowMenu, WORKLOAD_LINK } from "../components/RowMenu";
 
 /** Menú por fila: el compartido de todos los módulos (ver components/RowMenu). */
 const PreventiveRowMenu = ({ row }: { row: Record<string, unknown> }) => (
@@ -18,7 +18,7 @@ const PreventiveRowMenu = ({ row }: { row: Record<string, unknown> }) => (
     prompt={assistPreventivePrompt}
     assistPayload={assistPreventivePayload}
     practices={preventivePractices}
-    links={[{ label: "Abrir workload (Kubernetes)", href: workloadUrl(row.deployment_id) }]}
+    links={[{ label: WORKLOAD_LINK, href: workloadUrl(row.deployment_id) }]}
   />
 );
 
@@ -92,8 +92,63 @@ Depende de la señal:
 
 > 💡 Usa el botón **Preguntar a Dynatrace Assist** en cada fila para un diagnóstico guiado con la evidencia ya cargada.`;
 
+const preventiveAboutEn = `## 📊 What the report shows
+
+Each row is a **workload** that gave early signs of degradation in the **last 24 hours**, *before* it became an incident. It falls into:
+
+* **\`OOM_KILL\`:** at least one container was **killed for running out of memory** (it went over its *limit*). The most serious symptom.
+* **\`RESTART_LOOP\`:** it restarts in a loop (**>10 restarts** in 24h). Usually a startup crash, a misconfigured *probe* or a dependency that's down.
+* **\`RESTARTS_ELEVADOS\`** (elevated restarts): frequent restarts (**>3** in 24h) without reaching a loop.
+
+*For OOM, the memory context is included: average usage vs. limit (**Usage vs limit %**), the key clue to tell "limit too low" from "memory leak".*
+
+---
+
+## ⚠️ Why should I care?
+
+These signals are **the lead-up to an outage**. A recurring \`OOM_KILL\` degrades availability intermittently (the pod dies and comes back, losing requests in flight); a \`RESTART_LOOP\` can leave the service effectively down. Handling them now avoids the incident, and the 3 a.m. call, later.
+
+*Note: restarts are measured as the real increase of the counter in the window (not the sum of samples), and restart loops without OOM are included too (the report used to show only OOM because of a query limitation).*
+
+---
+
+## 🛠️ How do I fix it?
+
+It depends on the signal:
+
+1. **OOM with usage ≈ limit:** the memory limit is **too low** for the real load → raise it (see M1/M2 Rightsizing) after confirming it isn't a leak.
+2. **OOM with usage growing over time:** a suspected **memory leak** → look at the code/heap, don't just raise the limit.
+3. **RESTART_LOOP:** check the startup logs, the *readiness/liveness probes* (timeouts, paths) and external dependencies.
+
+> 💡 Use **Ask Dynatrace Assist** on each row for a guided diagnosis with the evidence already loaded.`;
+
+const preventiveEn: ModuleEnglish = {
+  title: "Preventive (M8 — Restarts and OOM kills)",
+  about: preventiveAboutEn,
+  simple: {
+    que: "Applications that are going down on their own: either the system kills them because they run out of memory, or they restart again and again.",
+    porque:
+      "It's instability that's already happening, not a future risk. Each crash loses whatever the application was doing, and users see intermittent errors, the hard-to-report kind.",
+    accion:
+      "The squad checks why it runs out of memory: it may need more than it has assigned, or it may have a leak that eats it up. Restart loops are almost always a startup error or a dependency that's down.",
+  },
+  detailNoun: "workloads with early signals (OOM first)",
+  headers: {
+    senal: "Signal",
+    workloads: "Workloads",
+    ooms_24h: "OOM kills 24h",
+    restarts_24h: "Restarts 24h",
+    restarts_num: "Restarts (n)",
+    mem_avg_mb: "MEM usage avg (MB)",
+    mem_limit_mb: "MEM limit (MB)",
+    mem_uso_pct: "Usage vs limit %",
+  },
+  facets: { senal: "Signal" },
+};
+
 export const Preventive = () => (
   <ModulePage
+    en={preventiveEn}
     title="Preventiva (M8 — Restarts y OOM kills)"
     about={preventiveAbout}
     summaryQuery={preventiveSummary}

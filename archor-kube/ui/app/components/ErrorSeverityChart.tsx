@@ -30,10 +30,10 @@ interface BreakdownRecord {
  * dimensión elegida (tier/squad/tribu).
  */
 export const ErrorSeverityChart = ({ filters }: { filters: TierFilterValue }) => {
-  const { t } = useT();
+  const { t, lang } = useT();
   const c = t.chart;
   const [dimension, setDimension] = useState<BreakdownDimension>("tier");
-  const { data, error, isLoading } = useDql({ query: errorSeverityBreakdown(dimension, filters) });
+  const { data, error, isLoading } = useDql({ query: errorSeverityBreakdown(dimension, { ...filters, lang }) });
 
   const chartData = useMemo<CategoricalBarChartData[]>(() => {
     const records = (data?.records ?? []) as BreakdownRecord[];
