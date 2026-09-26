@@ -54,7 +54,19 @@ const specThresholds = [
   },
   {
     comparator: "equal-to" as const,
+    value: "❌ Misses",
+    color: Colors.Text.Critical.Default,
+    backgroundColor: Colors.Background.Container.Critical.Emphasized,
+  },
+  {
+    comparator: "equal-to" as const,
     value: "❌ Sin Helm",
+    color: Colors.Text.Critical.Default,
+    backgroundColor: Colors.Background.Container.Critical.Emphasized,
+  },
+  {
+    comparator: "equal-to" as const,
+    value: "❌ No Helm",
     color: Colors.Text.Critical.Default,
     backgroundColor: Colors.Background.Container.Critical.Emphasized,
   },
@@ -65,6 +77,12 @@ const estadoThresholds = [
   {
     comparator: "equal-to" as const,
     value: "🔴 Crítico",
+    color: Colors.Text.Critical.Default,
+    backgroundColor: Colors.Background.Container.Critical.Emphasized,
+  },
+  {
+    comparator: "equal-to" as const,
+    value: "🔴 Critical",
     color: Colors.Text.Critical.Default,
     backgroundColor: Colors.Background.Container.Critical.Emphasized,
   },

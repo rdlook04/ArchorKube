@@ -3,7 +3,7 @@ import { deploymentIdJoin } from "./links";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { snapshotWindow } from "./analysisWindow";
 import { excludedNamespacesClause } from "./namespaces";
-import { noneLabel } from "./lang";
+import { noneLabel, qx } from "./lang";
 
 /**
  * M12 — Cumplimiento de estándar AKS (8 SPECs de buenas prácticas).
@@ -88,14 +88,14 @@ ${helmManagedJoin}
         if(root_containers==0,1,else:0) +
         if(sin_helm==0,1,else:0)
     ) * 100.0 / 8, decimals:0),
-    spec01 = if(sin_cpu_limit   == 0, "✅ Cumple", else: "❌ No cumple"),
-    spec02 = if(sin_mem_limit   == 0, "✅ Cumple", else: "❌ No cumple"),
-    spec03 = if(sin_cpu_req     == 0, "✅ Cumple", else: "❌ No cumple"),
-    spec04 = if(sin_mem_req     == 0, "✅ Cumple", else: "❌ No cumple"),
-    spec05 = if(sin_liveness    == 0, "✅ Cumple", else: "❌ No cumple"),
-    spec06 = if(sin_readiness   == 0, "✅ Cumple", else: "❌ No cumple"),
-    spec07 = if(root_containers == 0, "✅ Cumple", else: "❌ No cumple"),
-    spec08 = if(sin_helm        == 0, "✅ Helm",   else: "❌ Sin Helm")
+    spec01 = if(sin_cpu_limit   == 0, "${qx(params, "✅ Meets", "✅ Cumple")}", else: "${qx(params, "❌ Misses", "❌ No cumple")}"),
+    spec02 = if(sin_mem_limit   == 0, "${qx(params, "✅ Meets", "✅ Cumple")}", else: "${qx(params, "❌ Misses", "❌ No cumple")}"),
+    spec03 = if(sin_cpu_req     == 0, "${qx(params, "✅ Meets", "✅ Cumple")}", else: "${qx(params, "❌ Misses", "❌ No cumple")}"),
+    spec04 = if(sin_mem_req     == 0, "${qx(params, "✅ Meets", "✅ Cumple")}", else: "${qx(params, "❌ Misses", "❌ No cumple")}"),
+    spec05 = if(sin_liveness    == 0, "${qx(params, "✅ Meets", "✅ Cumple")}", else: "${qx(params, "❌ Misses", "❌ No cumple")}"),
+    spec06 = if(sin_readiness   == 0, "${qx(params, "✅ Meets", "✅ Cumple")}", else: "${qx(params, "❌ Misses", "❌ No cumple")}"),
+    spec07 = if(root_containers == 0, "${qx(params, "✅ Meets", "✅ Cumple")}", else: "${qx(params, "❌ Misses", "❌ No cumple")}"),
+    spec08 = if(sin_helm        == 0, "✅ Helm",   else: "${qx(params, "❌ No Helm", "❌ Sin Helm")}")
 | fieldsAdd
     criticidad = if(sin_readiness > 0 or sin_liveness > 0, "RIESGO_DISPONIBILIDAD",
                  else: if(sin_mem_limit > 0 or sin_mem_req > 0, "RIESGO_RECURSOS",
@@ -187,9 +187,9 @@ export const complianceSummary: QueryDef = {
     cumplimiento_pct   = round(cumple    * 100.0 / total, decimals: 1),
     incumplimiento_pct = round(no_cumple * 100.0 / total, decimals: 1),
     estado             = if(no_cumple == 0,                        "✅ OK",
-                         else: if(no_cumple * 100.0 / total > 50,  "🔴 Crítico",
-                         else: if(no_cumple * 100.0 / total > 10,  "🟡 Alerta",
-                         else:                                     "🟠 Revisar")))
+                         else: if(no_cumple * 100.0 / total > 50,  "${qx(params, "🔴 Critical", "🔴 Crítico")}",
+                         else: if(no_cumple * 100.0 / total > 10,  "${qx(params, "🟡 Warning", "🟡 Alerta")}",
+                         else:                                     "${qx(params, "🟠 Review", "🟠 Revisar")}")))
 | fields spec, cumple, no_cumple, cumplimiento_pct, incumplimiento_pct, estado
 | sort incumplimiento_pct desc`,
 };

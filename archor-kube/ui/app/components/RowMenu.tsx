@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import type { IntentPayload } from "@dynatrace-sdk/navigation";
 
 import { Button } from "@dynatrace/strato-components/buttons";
@@ -7,7 +7,7 @@ import { DotMenuIcon } from "@dynatrace/strato-icons";
 
 import { useExternalSend } from "../ai/useExternalSend";
 import { useT } from "../i18n";
-import type { Localized } from "../i18n";
+import type { Lang, Localized } from "../i18n";
 import { useOpenGuide } from "../practices/flagged";
 import { ASSIST_INTENT_OPTIONS } from "../queries/assist";
 
@@ -30,10 +30,10 @@ interface RowMenuProps {
   row: Row;
   /** Nombre corto del módulo: va al puente y al registro de envíos. */
   module: string;
-  /** Arma el prompt con la evidencia de la fila (queries/assist.ts). */
-  prompt: (row: Row) => string;
+  /** Arma el prompt con la evidencia de la fila, en el idioma pedido (queries/assist.ts). */
+  prompt: (row: Row, lang: Lang) => string;
   /** Payload del intent de Assist; recibe la fila completa porque no sale del tenant. */
-  assistPayload: (row: Row) => IntentPayload;
+  assistPayload: (row: Row, lang: Lang) => IntentPayload;
   /** Prácticas del catálogo que la fila incumple; sin esto no hay "Why is this flagged?". */
   practices?: (row: Row) => string[];
   links?: RowMenuLink[];
@@ -53,9 +53,11 @@ interface RowMenuProps {
  * copiar la fila completa al portapapeles era una salida sin filtro.
  */
 export const RowMenu = ({ row, module, prompt, assistPayload, practices, links }: RowMenuProps) => {
-  const { t, L } = useT();
+  const { t, L, lang } = useT();
   const openGuide = useOpenGuide();
-  const sendExternal = useExternalSend(prompt, module);
+  // El prompt sale en el idioma del usuario y le pide a la IA responder en ese idioma.
+  const localizedPrompt = useCallback((r: Row) => prompt(r, lang), [prompt, lang]);
+  const sendExternal = useExternalSend(localizedPrompt, module);
   const flagged = practices ? practices(row) : null;
 
   return (
@@ -71,7 +73,7 @@ export const RowMenu = ({ row, module, prompt, assistPayload, practices, links }
             {t.rowMenu.whyFlagged}
           </Menu.Item>
         )}
-        <Menu.Intent payload={assistPayload(row)} options={ASSIST_INTENT_OPTIONS}>
+        <Menu.Intent payload={assistPayload(row, lang)} options={ASSIST_INTENT_OPTIONS}>
           {t.rowMenu.askAssist}
         </Menu.Intent>
         <Menu.Item onSelect={() => sendExternal(row, "ollama")}>{t.rowMenu.sendOllama}</Menu.Item>
