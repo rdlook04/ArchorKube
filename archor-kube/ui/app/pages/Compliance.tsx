@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
 import { Button } from "@dynatrace/strato-components/buttons";
@@ -15,6 +16,7 @@ import {
   assistCompliancePrompt,
 } from "../queries/assist";
 import { workloadUrl } from "../queries/links";
+import { PRACTICES, practiceByCode } from "../practices/catalog";
 
 /** Copia el prompt de Assist al portapapeles y avisa con un toast. */
 const copyAssistPrompt = (row: Record<string, unknown>) => {
@@ -33,8 +35,29 @@ const copyAssistPrompt = (row: Record<string, unknown>) => {
     );
 };
 
-/** Menú por fila: preguntar a Assist, copiar prompt y abrir el workload. */
-const complianceRowActions = (row: Record<string, unknown>) => {
+/**
+ * Prácticas del catálogo que la fila incumple, en orden de prioridad. Las
+ * columnas spec01…spec08 traen "✅ …" o "❌ …" (ver complianceByWorkload).
+ */
+const failingPractices = (row: Record<string, unknown>): string[] => {
+  const failing = new Set<string>();
+  for (let n = 1; n <= 8; n++) {
+    const value = row[`spec0${n}`];
+    if (typeof value === "string" && value.startsWith("❌")) {
+      const practice = practiceByCode(`SPEC0${n}`);
+      if (practice) failing.add(practice.id);
+    }
+  }
+  return PRACTICES.filter((p) => failing.has(p.id)).map((p) => p.id);
+};
+
+/**
+ * Menú por fila: por qué se marca (Guía), preguntar a Assist, copiar prompt y
+ * abrir el workload. Es un componente porque navega dentro de la app.
+ */
+const ComplianceRowMenu = ({ row }: { row: Record<string, unknown> }) => {
+  const navigate = useNavigate();
+  const failing = failingPractices(row);
   const deploymentUrl = workloadUrl(row.deployment_id);
   return (
     <Menu>
@@ -44,6 +67,17 @@ const complianceRowActions = (row: Record<string, unknown>) => {
         </Button>
       </Menu.Trigger>
       <Menu.Content>
+        <Menu.Item
+          disabled={failing.length === 0}
+          onSelect={() => {
+            const query = new URLSearchParams({ focus: failing.join(",") });
+            const workload = row["k8s.workload.name"];
+            if (typeof workload === "string") query.set("workload", workload);
+            navigate(`/guide?${query.toString()}`);
+          }}
+        >
+          Why is this flagged?
+        </Menu.Item>
         <Menu.Intent payload={assistCompliancePayload(row)} options={ASSIST_INTENT_OPTIONS}>
           Preguntar a Dynatrace Assist
         </Menu.Intent>
@@ -230,7 +264,7 @@ export const Compliance = () => (
       { id: "spec07", header: "SPEC07 Non-Root ⚪", accessor: "spec07", thresholds: specThresholds },
       { id: "spec08", header: "SPEC08 Helm ⚪", accessor: "spec08", thresholds: specThresholds },
     ]}
-    rowActions={complianceRowActions}
+    rowActions={(row) => <ComplianceRowMenu row={row} />}
     summaryAside={(filters) => <ComplianceChart filters={filters} />}
     detailFacets={[{ id: "criticidad", label: "Criticidad" }]}
     detailNoun="workloads evaluados (peor criticidad primero)"

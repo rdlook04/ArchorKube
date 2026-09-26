@@ -91,6 +91,11 @@ const NAV: NavItem[] = [
     label: "Gasto",
     tooltip: "Módulo 13 (M13) — Gasto de infraestructura: qué máquinas hay, de qué tipo y desde cuándo",
   },
+  {
+    to: "/guide",
+    label: "Guide",
+    tooltip: "Module 14 (M14) — Best practices guide: why each rule exists and how to comply",
+  },
 ];
 
 interface HeaderProps {

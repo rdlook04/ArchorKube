@@ -6,6 +6,7 @@ import { Bottlenecks } from "./pages/Bottlenecks";
 import { Compliance } from "./pages/Compliance";
 import { ControlPlane } from "./pages/ControlPlane";
 import { Errors } from "./pages/Errors";
+import { Guide } from "./pages/Guide";
 import { Idle } from "./pages/Idle";
 import { Orphans } from "./pages/Orphans";
 import { Preventive } from "./pages/Preventive";
@@ -51,6 +52,7 @@ export const App = () => {
               <Route path="/bottlenecks" element={<Bottlenecks />} />
               <Route path="/compliance" element={<Compliance />} />
               <Route path="/spend" element={<Spend />} />
+              <Route path="/guide" element={<Guide />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </PageLayout.Content>
