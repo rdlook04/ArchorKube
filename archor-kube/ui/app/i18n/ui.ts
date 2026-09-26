@@ -183,6 +183,19 @@ export const en = {
     seeItIn: (module: string) => `See it in ${module}`,
     whoFixes: "Who usually fixes it",
   },
+  setup: {
+    title: "Setup",
+    intro:
+      "What ArchorKube needs from your tenant and your installation files, and which module stops working when something is missing. Every check is a read-only query.",
+    status: { ok: "OK", warn: "Needs attention", fail: "Not working", info: "Optional" },
+    running: "Running",
+    affects: (modules: string) => `Affects: ${modules}`,
+    howToFix: "How to fix",
+    checking: "Checking…",
+    runAgain: "Run again",
+    missingPermission: (message: string) => `Missing permission: ${message}`,
+    checkFailed: (message: string) => `The check failed: ${message}`,
+  },
 };
 
 export type UiText = typeof en;
@@ -369,5 +382,18 @@ export const es: UiText = {
     howMeasured: "Cómo la mide ArchorKube",
     seeItIn: (module: string) => `Verla en ${module}`,
     whoFixes: "Quién suele corregirla",
+  },
+  setup: {
+    title: "Setup",
+    intro:
+      "Qué necesita ArchorKube de tu tenant y de tus archivos de instalación, y qué módulo deja de funcionar cuando algo falta. Cada chequeo es una consulta de solo lectura.",
+    status: { ok: "OK", warn: "Requiere atención", fail: "No funciona", info: "Opcional" },
+    running: "Ejecutando",
+    affects: (modules: string) => `Afecta a: ${modules}`,
+    howToFix: "Cómo arreglarlo",
+    checking: "Revisando…",
+    runAgain: "Volver a revisar",
+    missingPermission: (message: string) => `Falta un permiso: ${message}`,
+    checkFailed: (message: string) => `El chequeo falló: ${message}`,
   },
 };

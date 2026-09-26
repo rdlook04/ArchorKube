@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import Borders from "@dynatrace/strato-design-tokens/borders";
 import Colors from "@dynatrace/strato-design-tokens/colors";
@@ -14,6 +14,10 @@ import {
   WarningIcon,
 } from "@dynatrace/strato-icons";
 
+import { useAiSettings } from "../ai/settings";
+import { useT } from "../i18n";
+import type { Lang } from "../i18n";
+import type { UiText } from "../i18n/ui";
 import { CHECKS, GROUP_LABELS } from "../setup/checks";
 import type { CheckGroup, CheckResult, CheckStatus, SetupCheck } from "../setup/checks";
 import { errorMessage, runQuery } from "../setup/runQuery";
@@ -23,28 +27,30 @@ type Results = Record<string, CheckResult | "running">;
 /** Consultas en paralelo, pero pocas a la vez: son 16 y algunas escanean inventario. */
 const CONCURRENCY = 4;
 
-const runCheck = async (check: SetupCheck): Promise<CheckResult> => {
+const runCheck = async (check: SetupCheck, lang: Lang, t: UiText): Promise<CheckResult> => {
   try {
-    if (check.kind === "client") return await check.run();
-    return check.evaluate(await runQuery(check.query, check.maxRecords));
+    if (check.kind === "client") return await check.run(lang);
+    return check.evaluate(await runQuery(check.query, check.maxRecords), lang);
   } catch (error) {
     const message = errorMessage(error);
     const permission = /scope|permission|forbidden|403|not authorized/i.test(message);
     return {
       status: "fail",
-      detail: permission ? `Missing permission: ${message}` : `The check failed: ${message}`,
+      detail: permission ? t.setup.missingPermission(message) : t.setup.checkFailed(message),
     };
   }
 };
 
-const STATUS_META: Record<CheckStatus, { label: string; color: string; icon: React.ReactNode }> = {
-  ok: { label: "OK", color: Colors.Icon.Success.Default, icon: <SuccessIcon /> },
-  warn: { label: "Needs attention", color: Colors.Icon.Warning.Default, icon: <WarningIcon /> },
-  fail: { label: "Not working", color: Colors.Icon.Critical.Default, icon: <CriticalIcon /> },
-  info: { label: "Optional", color: Colors.Icon.Neutral.Default, icon: <InformationIcon /> },
+/** La etiqueta de cada estado sale del diccionario (t.setup.status). */
+const STATUS_META: Record<CheckStatus, { color: string; icon: React.ReactNode }> = {
+  ok: { color: Colors.Icon.Success.Default, icon: <SuccessIcon /> },
+  warn: { color: Colors.Icon.Warning.Default, icon: <WarningIcon /> },
+  fail: { color: Colors.Icon.Critical.Default, icon: <CriticalIcon /> },
+  info: { color: Colors.Icon.Neutral.Default, icon: <InformationIcon /> },
 };
 
 const CheckRow = ({ check, result }: { check: SetupCheck; result?: CheckResult | "running" }) => {
+  const { t, L } = useT();
   const done = result && result !== "running" ? result : null;
   const meta = done ? STATUS_META[done.status] : null;
   return (
@@ -58,14 +64,14 @@ const CheckRow = ({ check, result }: { check: SetupCheck; result?: CheckResult |
     >
       <Flex gap={12} alignItems="flex-start">
         <span style={{ color: meta?.color, display: "flex", paddingTop: 2, minWidth: 20 }}>
-          {meta ? meta.icon : <ProgressCircle size="small" aria-label="Running" />}
+          {meta ? meta.icon : <ProgressCircle size="small" aria-label={t.setup.running} />}
         </span>
         <Flex flexDirection="column" gap={4} style={{ flex: 1, minWidth: 0 }}>
           <Flex gap={8} alignItems="baseline" flexWrap="wrap">
-            <Text textStyle="base-emphasized">{check.title}</Text>
+            <Text textStyle="base-emphasized">{L(check.title)}</Text>
             {meta && (
               <Text textStyle="small" style={{ color: meta.color }}>
-                {meta.label}
+                {done && t.setup.status[done.status]}
               </Text>
             )}
           </Flex>
@@ -80,14 +86,14 @@ const CheckRow = ({ check, result }: { check: SetupCheck; result?: CheckResult |
             </List>
           )}
           <Text textStyle="small" style={{ color: Colors.Text.Neutral.Subdued }}>
-            Affects: {check.affects.join(", ")}
+            {t.setup.affects(L(check.affects))}
           </Text>
           {done && done.status !== "ok" && (
             <Accordion>
               <Accordion.Section id={`${check.id}-fix`}>
-                <Accordion.SectionLabel>How to fix</Accordion.SectionLabel>
+                <Accordion.SectionLabel>{t.setup.howToFix}</Accordion.SectionLabel>
                 <Accordion.SectionContent>
-                  <Paragraph>{check.fix}</Paragraph>
+                  <Paragraph>{L(check.fix)}</Paragraph>
                   {check.kind === "query" && (
                     <CodeSnippet language="dql" showCopyAction>
                       {check.query}
@@ -109,26 +115,36 @@ const CheckRow = ({ check, result }: { check: SetupCheck; result?: CheckResult |
  * solo lectura, y dice qué módulo se ve afectado y cómo arreglarlo.
  */
 export const Setup = () => {
+  const { t, lang, L } = useT();
+  const { loaded } = useAiSettings();
   const [results, setResults] = useState<Results>({});
   const [running, setRunning] = useState(false);
+  // Cada revisión tiene un número: si arranca otra (por ejemplo al cargar la
+  // preferencia de idioma), los resultados atrasados de la anterior se descartan
+  // en vez de pisar a los nuevos.
+  const runId = useRef(0);
 
   const runAll = useCallback(async () => {
+    const id = ++runId.current;
     setRunning(true);
     setResults(Object.fromEntries(CHECKS.map((c) => [c.id, "running" as const])));
     const queue = [...CHECKS];
     const worker = async () => {
       for (let check = queue.shift(); check; check = queue.shift()) {
-        const result = await runCheck(check);
+        const result = await runCheck(check, lang, t);
+        if (id !== runId.current) return;
         setResults((prev) => ({ ...prev, [check.id]: result }));
       }
     };
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
-    setRunning(false);
-  }, []);
+    if (id === runId.current) setRunning(false);
+    // Los mensajes se arman en el idioma del usuario: al cambiarlo, se vuelve a revisar.
+  }, [lang, t]);
 
+  // Espera a que cargue la preferencia de idioma para no revisar dos veces.
   useEffect(() => {
-    void runAll();
-  }, [runAll]);
+    if (loaded) void runAll();
+  }, [runAll, loaded]);
 
   const finished = Object.values(results).filter((r): r is CheckResult => r !== "running");
   const tally = (status: CheckStatus) => finished.filter((r) => r.status === status).length;
@@ -137,11 +153,8 @@ export const Setup = () => {
   return (
     <Flex flexDirection="column" gap={24} padding={32} style={{ maxWidth: 960 }}>
       <Flex flexDirection="column" gap={8}>
-        <Heading level={1}>Setup</Heading>
-        <Paragraph>
-          What ArchorKube needs from your tenant and your installation files, and which module stops
-          working when something is missing. Every check is a read-only query.
-        </Paragraph>
+        <Heading level={1}>{t.setup.title}</Heading>
+        <Paragraph>{t.setup.intro}</Paragraph>
       </Flex>
 
       <Flex gap={24} alignItems="center" flexWrap="wrap">
@@ -151,7 +164,7 @@ export const Setup = () => {
               {STATUS_META[status].icon}
             </span>
             <Text>
-              {tally(status)} {STATUS_META[status].label.toLowerCase()}
+              {tally(status)} {t.setup.status[status].toLowerCase()}
             </Text>
           </Flex>
         ))}
@@ -160,13 +173,13 @@ export const Setup = () => {
           <Button.Prefix>
             <RefreshIcon />
           </Button.Prefix>
-          {running ? "Checking…" : "Run again"}
+          {running ? t.setup.checking : t.setup.runAgain}
         </Button>
       </Flex>
 
       {groups.map((group) => (
         <Flex key={group} flexDirection="column" gap={8}>
-          <Heading level={2}>{GROUP_LABELS[group]}</Heading>
+          <Heading level={2}>{L(GROUP_LABELS[group])}</Heading>
           {CHECKS.filter((c) => c.group === group).map((check) => (
             <CheckRow key={check.id} check={check} result={results[check.id]} />
           ))}
