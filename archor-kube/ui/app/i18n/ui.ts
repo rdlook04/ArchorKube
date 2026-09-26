@@ -354,6 +354,50 @@ export const en = {
     activeNodesPerDay: "Active nodes per day (30 days)",
     spendGrowing: "is spend growing?",
   },
+  home: {
+    eyebrow: "Cluster overview",
+    title: "How many problems do I have right now?",
+    nameExplained: [
+      "Arch",
+      " for architecture and ",
+      "archon",
+      " (from the Greek ",
+      "arkhon",
+      ", 'the one who governs': the magistrates who orchestrated the state) on ",
+      "Kube",
+      "rnetes. That's the idea: not one more dashboard that reports, but the one that runs the queue, giving every finding an owner, a criticality and an order of attention so operational chaos doesn't govern itself.",
+    ],
+    intro:
+      " reviews cost, reliability and compliance on live Grail data. This summary groups each module by what it solves, with the volume of findings waiting inside and the data window each one analyzes.",
+    kpiFindings: "Open findings in the cluster",
+    kpiFindingsDetail:
+      "Sum of the rows each findings module returns, with the same criteria you'll see inside. The Tiers catalog doesn't count: it's inventory, not pending work.",
+    kpiTop: "Top priority in their module",
+    kpiTopDetail:
+      "Findings in the worst level each module defines: critical throttling in rightsizing, OOM kill in preventive, confirmed idle, outage risk with all three factors, and so on. Each module sets its own.",
+    kpiWaste: "Estimated waste per month",
+    kpiCompliance: "AKS standard compliance",
+    kpiComplianceDetail:
+      "Average compliance percentage for the 8 SPECs of the AKS standard (limits, requests, probes, non-root, Helm) across every evaluated workload.",
+    wasteIntro: (vcpu: string, gb: string) => [
+      "Reserved and unused capacity is valued at ",
+      `${vcpu} per vCPU per month`,
+      " and ",
+      `${gb} per GB of RAM per month`,
+      " (approximate AKS Dv5 node, prorated half CPU and half memory).",
+    ],
+    wasteRightsizing: "— what pods reserve and don't use (request minus real usage).",
+    wasteIdle: "— the full reservation of workloads with no activity.",
+    wasteNodes: "— node capacity no pod requested.",
+    wasteOverlap:
+      "The three overlap: an oversized pod also leaves free capacity on its node, and an idle workload also shows up with slack in rightsizing. Take it as the ceiling of the waste, not as a bill.",
+    catalog: "Catalog",
+    criticals: (n: string, one: boolean) => `${n} ${one ? "critical" : "criticals"}`,
+    attention: "Attention",
+    noFindings: "No findings",
+    noData: "no data",
+    findings: (n: string) => `${n} findings`,
+  },
 };
 
 export type UiText = typeof en;
@@ -711,5 +755,49 @@ export const es: UiText = {
     reposByTier: "Repositorios por tier",
     activeNodesPerDay: "Nodos activos por día (30 días)",
     spendGrowing: "¿el gasto está creciendo?",
+  },
+  home: {
+    eyebrow: "Vista general del clúster",
+    title: "¿Cuántos problemas tengo ahora mismo?",
+    nameExplained: [
+      "Arch",
+      " de arquitectura y ",
+      "arconte",
+      " —del griego ",
+      "arkhon",
+      ", «el que gobierna»: los magistrados que orquestaban el estado— sobre ",
+      "Kube",
+      "rnetes. Esa es la idea: no un tablero más que reporta, sino el que manda en la cola, poniéndole dueño, criticidad y orden de atención a cada hallazgo para que el caos operativo no se gobierne solo.",
+    ],
+    intro:
+      " revisa costos, confiabilidad y cumplimiento sobre datos en vivo de Grail. Este resumen agrupa cada módulo por lo que resuelve, con el volumen de hallazgos que te espera adentro y la ventana de datos que analiza cada uno.",
+    kpiFindings: "Hallazgos abiertos en el clúster",
+    kpiFindingsDetail:
+      "Suma de las filas que devuelve cada módulo de hallazgos, con el mismo criterio que verás al entrar. El catálogo de Tiers no suma: es inventario, no trabajo pendiente.",
+    kpiTop: "De máxima prioridad en su módulo",
+    kpiTopDetail:
+      "Hallazgos en el peor escalón que define cada módulo: throttling crítico en rightsizing, OOM kill en preventiva, ocioso confirmado, riesgo de caída con los tres factores, y así. Cada módulo fija el suyo.",
+    kpiWaste: "Desperdicio estimado por mes",
+    kpiCompliance: "Cumplimiento del estándar AKS",
+    kpiComplianceDetail:
+      "Promedio del porcentaje de cumplimiento de las 8 SPECs del estándar AKS (limits, requests, probes, non-root, Helm) sobre todos los workloads evaluados.",
+    wasteIntro: (vcpu: string, gb: string) => [
+      "Se valoriza la capacidad reservada y no aprovechada, a ",
+      `${vcpu} por vCPU al mes`,
+      " y ",
+      `${gb} por GB de RAM al mes`,
+      " (nodo AKS Dv5 aproximado, prorrateado mitad CPU y mitad memoria).",
+    ],
+    wasteRightsizing: "— lo que los pods reservan y no usan (request menos uso real).",
+    wasteIdle: "— la reserva completa de los workloads sin actividad.",
+    wasteNodes: "— capacidad de nodo que ningún pod solicitó.",
+    wasteOverlap:
+      "Los tres se solapan: un pod sobredimensionado también deja capacidad libre en su nodo, y un workload ocioso aparece además con slack en rightsizing. Tómalo como el techo del desperdicio, no como una factura.",
+    catalog: "Catálogo",
+    criticals: (n: string, one: boolean) => `${n} ${one ? "crítico" : "críticos"}`,
+    attention: "Atención",
+    noFindings: "Sin hallazgos",
+    noData: "sin datos",
+    findings: (n: string) => `${n} hallazgos`,
   },
 };

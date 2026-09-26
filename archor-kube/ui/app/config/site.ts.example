@@ -131,7 +131,8 @@ export const OWNERSHIP_IGNORED_VALUES: string[] = [
  *
  *   export const EXTRA_FILTERS: ExtraFilter[] = [
  *     { id: "criticality", label: "Business criticality", key: "business-criticality" },
- *     { id: "costcenter", label: "Cost center", key: "cost-center" },
+ *     // La etiqueta también puede ir en los dos idiomas de la app:
+ *     { id: "costcenter", label: { en: "Cost center", es: "Centro de costo" }, key: "cost-center" },
  *   ];
  */
 

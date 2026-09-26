@@ -5,7 +5,7 @@ import { Select } from "@dynatrace/strato-components/forms";
 import { useDql } from "@dynatrace-sdk/react-hooks";
 
 import type { QueryParams } from "../queries";
-import { EXTRA_FILTERS } from "../config/extraFilters";
+import { EXTRA_FILTERS, filterLabel } from "../config/extraFilters";
 import { useT } from "../i18n";
 import type { ExtraFilter } from "../config/extraFilters";
 import {
@@ -39,7 +39,8 @@ const ExtraFilterSelect = ({
   value: string | undefined;
   onChange: (value: string | undefined) => void;
 }) => {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const label = filterLabel(filter, lang);
   const { data } = useDql({ query: extraFilterOptionsQuery(filter.key) });
   const values = ((data?.records ?? []) as { value?: string }[])
     .map((r) => r.value)
@@ -47,12 +48,12 @@ const ExtraFilterSelect = ({
   if (values.length === 0) return null;
   return (
     <Select
-      aria-label={filter.label}
+      aria-label={label}
       clearable
       value={value ?? null}
       onChange={(v) => onChange(v ?? undefined)}
     >
-      <Select.Trigger placeholder={t.module.filters.extraAll(filter.label)} />
+      <Select.Trigger placeholder={t.module.filters.extraAll(label)} />
       <Select.Content>
         {values.map((v) => (
           <Select.Option key={v} value={v}>

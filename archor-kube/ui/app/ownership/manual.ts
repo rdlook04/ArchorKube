@@ -72,12 +72,19 @@ export const manualProvider = (
   // null que luego habría que coalescer para nada.
   rules.length === 0 ? noneProvider : {
   id: "manual",
-  label: "Mapeo manual",
-  about: [
-    `Reglas declaradas en la configuración de la app (${rules.length} activa(s)).`,
-    "Se evalúan en orden y gana la primera que coincide, así que las reglas más",
-    "específicas deben ir arriba. Lo que ninguna regla cubre queda *(sin dueño)*.",
-  ].join(" "),
+  label: { en: "Manual mapping", es: "Mapeo manual" },
+  about: {
+    en: [
+      `Rules declared in the app configuration (${rules.length} active).`,
+      "They're evaluated in order and the first match wins, so the most specific",
+      "rules must go first. Whatever no rule covers stays *(no owner)*.",
+    ].join(" "),
+    es: [
+      `Reglas declaradas en la configuración de la app (${rules.length} activa(s)).`,
+      "Se evalúan en orden y gana la primera que coincide, así que las reglas más",
+      "específicas deben ir arriba. Lo que ninguna regla cubre queda *(sin dueño)*.",
+    ].join(" "),
+  },
 
   enrich: (sourceField, suffix = "") => {
     const s = suffix;

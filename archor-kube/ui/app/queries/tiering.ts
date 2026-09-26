@@ -1,6 +1,6 @@
 import type { QueryDef, QueryParams } from "./types";
 import { catalogWindow } from "./analysisWindow";
-import { ownership } from "../ownership";
+import { ownership, providerText } from "../ownership";
 import { tierLookupJoin } from "./tierJoin";
 import { qx } from "./lang";
 
@@ -33,8 +33,8 @@ ${tierLookupJoin("repo")}
 const INVENTORY = ownership.catalog ?? WORKLOAD_INVENTORY;
 
 const SOURCE_NOTE = {
-  en: `${ownership.about} No time dimension: it reflects the inventory as it is right now.`,
-  es: `${ownership.about} Sin dimensión temporal: refleja el inventario tal como está en este momento.`,
+  en: `${providerText(ownership.about, "en")} No time dimension: it reflects the inventory as it is right now.`,
+  es: `${providerText(ownership.about, "es")} Sin dimensión temporal: refleja el inventario tal como está en este momento.`,
 };
 
 export const tierByRepo: QueryDef = {

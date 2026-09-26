@@ -70,14 +70,23 @@ const readKey = (key: string, sfx: string): string => {
 
 export const labelsProvider: OwnershipProvider = {
   id: "labels",
-  label: "Labels / annotations de Kubernetes",
-  about: [
-    "La propiedad se lee de las labels y annotations del propio workload",
-    `(\`${OWNERSHIP_KEYS.squad}\`, \`${OWNERSHIP_KEYS.tier}\`).`,
-    "Las annotations ganan sobre las labels. Un workload sin etiquetar aparece",
-    "como *(sin dueño)* — no se le asigna uno por defecto, porque un dueño",
-    "inventado es peor que un hueco visible.",
-  ].join(" "),
+  label: { en: "Kubernetes labels / annotations", es: "Labels / annotations de Kubernetes" },
+  about: {
+    en: [
+      "Ownership is read from the workload's own labels and annotations",
+      `(\`${OWNERSHIP_KEYS.squad}\`, \`${OWNERSHIP_KEYS.tier}\`).`,
+      "Annotations win over labels. An unlabeled workload shows up as",
+      "*(no owner)*: it doesn't get one by default, because an invented owner",
+      "is worse than a visible gap.",
+    ].join(" "),
+    es: [
+      "La propiedad se lee de las labels y annotations del propio workload",
+      `(\`${OWNERSHIP_KEYS.squad}\`, \`${OWNERSHIP_KEYS.tier}\`).`,
+      "Las annotations ganan sobre las labels. Un workload sin etiquetar aparece",
+      "como *(sin dueño)* — no se le asigna uno por defecto, porque un dueño",
+      "inventado es peor que un hueco visible.",
+    ].join(" "),
+  },
 
   enrich: (sourceField, suffix = "") => {
     const s = suffix;

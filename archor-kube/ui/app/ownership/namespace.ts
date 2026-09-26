@@ -14,13 +14,21 @@ import type { OwnershipProvider } from "./types";
  */
 export const namespaceProvider: OwnershipProvider = {
   id: "namespace",
-  label: "Convención de namespace",
-  about: [
-    "El namespace se toma como nombre del equipo dueño.",
-    "No deduce tier ni dominio: esos quedan vacíos, porque derivarlos del",
-    "nombre del namespace sería adivinar. Útil como último recurso cuando no",
-    "hay labels ni catálogo.",
-  ].join(" "),
+  label: { en: "Namespace convention", es: "Convención de namespace" },
+  about: {
+    en: [
+      "The namespace is taken as the owning team's name.",
+      "It doesn't infer tier or domain: those stay empty, because deriving them",
+      "from the namespace name would be guessing. Useful as a last resort when",
+      "there are no labels or catalog.",
+    ].join(" "),
+    es: [
+      "El namespace se toma como nombre del equipo dueño.",
+      "No deduce tier ni dominio: esos quedan vacíos, porque derivarlos del",
+      "nombre del namespace sería adivinar. Útil como último recurso cuando no",
+      "hay labels ni catálogo.",
+    ].join(" "),
+  },
 
   enrich: (_sourceField, suffix = "") => {
     const s = suffix;

@@ -2,8 +2,8 @@
  * Capa de propiedad. Todo el resto de la app importa desde aquí y nunca desde
  * un proveedor concreto, para que cambiar de fuente no toque ningún módulo.
  */
-export type { OwnershipProvider, OwnershipField } from "./types";
-export { OWNERSHIP_FIELDS } from "./types";
+export type { OwnershipProvider, OwnershipField, ProviderText } from "./types";
+export { OWNERSHIP_FIELDS, providerText } from "./types";
 
 export { labelsProvider, OWNERSHIP_KEYS } from "./labels";
 export { manualProvider, DEFAULT_RULES } from "./manual";

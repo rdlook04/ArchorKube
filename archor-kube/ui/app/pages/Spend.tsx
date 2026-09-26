@@ -2,7 +2,7 @@ import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
 
-import { ModulePage, dotted } from "../components/ModulePage";
+import { ModulePage, dotted, type ModuleEnglish } from "../components/ModulePage";
 import { NodeTrendChart } from "../components/NodeTrendChart";
 import { nodeInventory, spendByInstanceType } from "../queries/spend";
 import { INSTANCE_HOURLY_USD, PRICING_SOURCE } from "../config/site";
@@ -64,8 +64,74 @@ La nube factura las máquinas **por hora, no por mes**. Por eso el conteo de nod
 
 **Precios:** ${PRICING_SOURCE}: ${priceList}. Con reserved instances o acuerdos empresariales el costo real puede ser 20-40 % menor, así que estas cifras son un techo. Un tipo de instancia sin precio en la tabla aparece sin gasto, no en cero.`;
 
+const priceListEn =
+  Object.entries(INSTANCE_HOURLY_USD)
+    .map(([sku, usd]) => `\`${sku}\` ${usd.toFixed(4)} USD/h`)
+    .join(" and ") || "no instance types configured";
+
+const spendAboutEn = `## 📊 What the report shows
+
+The **inventory of machines** behind the clusters, which is where the infrastructure bill comes from. Each node is enriched with its **instance type** (label \`beta.kubernetes.io/instance-type\`) and how many **days it was active** in the last 30.
+
+| Column | What it means |
+|:---|:---|
+| **Nodes** | Distinct machines seen in the window, whether they still exist or not |
+| **Active today** | The ones still reporting in the last interval |
+| **Average days** | How long they last on average: low values mean a lot of autoscaler churn |
+| **Node-days** | Sum of days of every machine in the group. It's the basis for prorating |
+| **30-day spend** | Node-days × 24 h × hourly price of the instance type |
+| **Current rate** | What the machines still on would cost per month |
+
+---
+
+## ⚠️ Why should I care?
+
+The other modules estimate **waste**; this one measures **spend**. Without it, saying "5,000 USD a month is wasted" has no scale: you don't know whether it's 5% or 60% of what's paid.
+
+The cloud bills machines **by the hour, not by the month**. That's why the node count isn't enough: a node that lived 3 days costs 3/30 of the monthly price. The **node-days** column is what allows prorating, and without it a cluster with an aggressive autoscaler would look like it spends much more than it's billed.
+
+---
+
+## 🛠️ How is it used?
+
+1. **Size it:** nodes × instance type price = cluster spend.
+2. **See the trend:** the chart shows whether the number of machines grows. A step up that doesn't come down is new permanent spend.
+3. **Spot churn:** many nodes with few days of life mean the autoscaler keeps creating and destroying them.
+
+**Prices:** ${PRICING_SOURCE}: ${priceListEn}. With reserved instances or enterprise agreements the real cost can be 20-40% lower, so these figures are a ceiling. An instance type without a price in the table shows up with no spend, not with zero.`;
+
+const spendEn: ModuleEnglish = {
+  title: "Spend (M13 — Infrastructure)",
+  about: spendAboutEn,
+  simple: {
+    que: "How many machines sustain the clusters, what size they are and how long they've been on.",
+    porque:
+      "It's the infrastructure bill. The other modules say how much is wasted; this one says out of how much. Without that reference, saving a thousand dollars a month can be a lot or negligible.",
+    accion:
+      "Watch the trend: if the number of machines goes up and doesn't come back down, spend rose permanently and it's worth understanding what caused it.",
+  },
+  detailNoun: "nodes seen in 30 days",
+  headers: {
+    cluster: "Cluster",
+    instance_type: "Instance type",
+    nodos: "Nodes",
+    activos_hoy: "Active today",
+    dias_promedio: "Average days",
+    nodo_dias: "Node-days",
+    precio_mes_usd: "USD/month per node",
+    gasto_30d_usd: "30-day spend (USD)",
+    ritmo_mes_usd: "Current rate (USD/month)",
+    nodo: "Node",
+    antiguedad: "Age",
+    dias_activo: "Days active",
+    sigue_activo: "Still active",
+  },
+  facets: { antiguedad: "Age", instance_type: "Instance type", "k8s.cluster.name": "Cluster" },
+};
+
 export const Spend = () => (
   <ModulePage
+    en={spendEn}
     title="Gasto (M13 — Infraestructura)"
     about={spendAbout}
     simple={{

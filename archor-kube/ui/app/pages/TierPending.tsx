@@ -2,7 +2,7 @@ import React from "react";
 
 import Colors from "@dynatrace/strato-design-tokens/colors";
 
-import { ModulePage, dotted } from "../components/ModulePage";
+import { ModulePage, dotted, type ModuleEnglish } from "../components/ModulePage";
 import { tierPendingBySquad, tierPendingWorkloads } from "../queries/tierPending";
 
 /**
@@ -54,8 +54,60 @@ Mientras el tier falte, ese workload es invisible para la priorización. Y el se
 
 *Nota: módulo de gobernanza, no de consumo; no tiene pérdida en USD ni barras de uso.*`;
 
+const pendingAboutEn = `## 📊 What the report shows
+
+The workloads running **without a declared tier**, and which squad to ask for it.
+
+It's not a technical finding: it's the debt that prevents prioritizing everything else. A workload without a tier sits at the bottom of every module's queue, not because it's healthy, but because nobody declared how much it matters.
+
+They're split into two cases, because the action and the person responsible are different:
+
+* **\`ASIGNAR_TIER\`** (assign tier): the squad is already known. **It can be handed out today**: that team declares the tier and that's it.
+* **\`FALTA_DUENO\`** (owner missing): there isn't even a squad. **It can't be handed out**: first find out whose it is (see M6 Orphans) and only then ask for the tier.
+
+---
+
+## ⚠️ Why should I care?
+
+Because the tier is what turns a list of findings into a **queue prioritized by business impact**, and it's information only the squad can give: nobody in the platform team knows whether a service can be down for half an hour or not at all.
+
+While the tier is missing, that workload is invisible to prioritization. And the bias is bad: when the data shows up, most of what was untiered turns out to be **tier 1**.
+
+---
+
+## 🛠️ How is it used?
+
+1. **Filter by squad** with the selectors above and send each team its list.
+2. **Tackle the \`ASIGNAR_TIER\` ones first:** they're closed with a decision, with no prior investigation.
+3. **The \`FALTA_DUENO\` ones go to M6 Orphans:** that's where the owner gets resolved; the tier comes after.
+4. **Close the gap at the source:** by registering the tier in the catalog, or adding the tier label to the manifest.
+
+*Note: governance module, not a consumption one; it has no loss in USD or usage bars.*`;
+
+const pendingEn: ModuleEnglish = {
+  title: "Pending tiers (M7 — No declared tier)",
+  about: pendingAboutEn,
+  simple: {
+    que: "Running applications nobody classified by business importance, and the team to ask.",
+    porque:
+      "Without that classification you can't say what to fix first. An application without a tier is treated as if it didn't matter if it went down, and it's often the opposite: once classified, most turn out to be among the most critical.",
+    accion:
+      "Split the list by team. The ones that already have an owner are closed with a team decision; the ones without an owner must be identified first in Orphans.",
+  },
+  detailNoun: "workloads without a tier (the ones that can be handed out first)",
+  headers: {
+    tribu: "Tribe",
+    pendientes: "Pending",
+    sin_dueno: "Of those, no owner",
+    kind: "Kind",
+    motivo: "Reason",
+  },
+  facets: { motivo: "Reason" },
+};
+
 export const TierPending = () => (
   <ModulePage
+    en={pendingEn}
     title="Pendientes de tieraje (M7 — Sin tier declarado)"
     about={pendingAbout}
     summaryQuery={tierPendingBySquad}

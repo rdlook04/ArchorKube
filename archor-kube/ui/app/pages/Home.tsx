@@ -30,6 +30,8 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 
 import { USD_GB_MONTH, USD_VCPU_MONTH } from "../queries/costModel";
 import { useT } from "../i18n";
+import type { Lang, Localized } from "../i18n";
+import type { UiText } from "../i18n/ui";
 import { windowLabel } from "../queries/analysisWindow";
 import {
   HOME_COUNT_QUERIES,
@@ -42,18 +44,18 @@ type IconType = React.ComponentType<SvgIconProps>;
 
 interface ModuleItem {
   to: string;
-  title: string;
-  desc: string;
+  title: Localized;
+  desc: Localized;
   Icon: IconType;
   /** Sustantivo del contador, ej. "workloads". */
-  unit: string;
+  unit: Localized;
   /** Inventario de referencia: su volumen no son hallazgos por resolver. */
   catalog?: boolean;
 }
 
 interface ModuleSection {
-  title: string;
-  blurb: string;
+  title: Localized;
+  blurb: Localized;
   accent: string;
   items: ModuleItem[];
 }
@@ -61,115 +63,115 @@ interface ModuleSection {
 /** Módulos agrupados por el rol que cumplen para el equipo. */
 const SECTIONS: ModuleSection[] = [
   {
-    title: "Optimización de costos (FinOps)",
-    blurb: "Recupera capacidad y dinero de recursos sobre-aprovisionados o inactivos.",
+    title: { en: "Cost optimization (FinOps)", es: "Optimización de costos (FinOps)" },
+    blurb: { en: "Recover capacity and money from over-provisioned or inactive resources.", es: "Recupera capacidad y dinero de recursos sobre-aprovisionados o inactivos." },
     accent: Colors.Text.Success.Default,
     items: [
       {
         to: "/rightsizing",
-        title: "Rightsizing",
-        desc: "Slack de CPU/memoria vs. lo reservado; sobre y subdimensionamiento.",
+        title: { en: "Rightsizing", es: "Rightsizing" },
+        desc: { en: "CPU/memory slack vs. what's reserved; over- and under-provisioning.", es: "Slack de CPU/memoria vs. lo reservado; sobre y subdimensionamiento." },
         Icon: ResizeIcon,
-        unit: "pods",
+        unit: { en: "pods", es: "pods" },
       },
       {
         to: "/nodes",
-        title: "Nodos",
-        desc: "Densidad de pods por nodo y candidatos a consolidar o eliminar.",
+        title: { en: "Nodes", es: "Nodos" },
+        desc: { en: "Pod density per node and candidates to consolidate or remove.", es: "Densidad de pods por nodo y candidatos a consolidar o eliminar." },
         Icon: HostsIcon,
-        unit: "nodos",
+        unit: { en: "nodes", es: "nodos" },
       },
       {
         to: "/idle",
-        title: "Ociosos",
-        desc: "Workloads sin tráfico ni actividad, candidatos a escalar a cero.",
+        title: { en: "Idle", es: "Ociosos" },
+        desc: { en: "Workloads with no traffic or activity, candidates to scale to zero.", es: "Workloads sin tráfico ni actividad, candidatos a escalar a cero." },
         Icon: GhostIcon,
-        unit: "workloads",
+        unit: { en: "workloads", es: "workloads" },
       },
     ],
   },
   {
-    title: "Confiabilidad (SRE)",
-    blurb: "Anticipa caídas y degradaciones antes de que impacten al usuario.",
+    title: { en: "Reliability (SRE)", es: "Confiabilidad (SRE)" },
+    blurb: { en: "Anticipate outages and degradation before they hit users.", es: "Anticipa caídas y degradaciones antes de que impacten al usuario." },
     accent: Colors.Text.Critical.Default,
     items: [
       {
         to: "/risk",
-        title: "Riesgo de caída",
-        desc: "Réplica única y probes faltantes: puntos únicos de falla.",
+        title: { en: "Outage risk", es: "Riesgo de caída" },
+        desc: { en: "Single replica and missing probes: single points of failure.", es: "Réplica única y probes faltantes: puntos únicos de falla." },
         Icon: WarningIcon,
-        unit: "workloads",
+        unit: { en: "workloads", es: "workloads" },
       },
       {
         to: "/preventive",
-        title: "Preventiva",
-        desc: "OOM kills y bucles de reinicio: inestabilidad emergente.",
+        title: { en: "Preventive", es: "Preventiva" },
+        desc: { en: "OOM kills and restart loops: emerging instability.", es: "OOM kills y bucles de reinicio: inestabilidad emergente." },
         Icon: HeartIcon,
-        unit: "workloads",
+        unit: { en: "workloads", es: "workloads" },
       },
       {
         to: "/errors",
-        title: "Errores críticos",
-        desc: "Errores y fatales en logs, agrupados por contenedor.",
+        title: { en: "Critical errors", es: "Errores críticos" },
+        desc: { en: "Errors and fatals in logs, grouped by container.", es: "Errores y fatales en logs, agrupados por contenedor." },
         Icon: BugReportIcon,
-        unit: "contenedores",
+        unit: { en: "containers", es: "contenedores" },
       },
       {
         to: "/bottlenecks",
-        title: "Cuellos de botella",
-        desc: "Picos de CPU throttling y nodos saturados.",
+        title: { en: "Bottlenecks", es: "Cuellos de botella" },
+        desc: { en: "CPU throttling peaks and saturated nodes.", es: "Picos de CPU throttling y nodos saturados." },
         Icon: MeterbarIcon,
-        unit: "workloads",
+        unit: { en: "workloads", es: "workloads" },
       },
       {
         to: "/elasticity",
-        title: "Elasticidad",
-        desc: "HPAs topados en su máximo o sin margen para escalar.",
+        title: { en: "Elasticity", es: "Elasticidad" },
+        desc: { en: "HPAs capped at their maximum or without headroom to scale.", es: "HPAs topados en su máximo o sin margen para escalar." },
         Icon: RefreshAutoIcon,
-        unit: "HPAs",
+        unit: { en: "HPAs", es: "HPAs" },
       },
       {
         to: "/control-plane",
-        title: "Control plane",
-        desc: "Salud de nodos: condiciones NotReady y presión de recursos.",
+        title: { en: "Control plane", es: "Control plane" },
+        desc: { en: "Node health: NotReady conditions and resource pressure.", es: "Salud de nodos: condiciones NotReady y presión de recursos." },
         Icon: NetworkIcon,
-        unit: "condiciones",
+        unit: { en: "conditions", es: "condiciones" },
       },
     ],
   },
   {
-    title: "Gobernanza",
-    blurb: "Estándares, tieraje y limpieza del inventario de la plataforma.",
+    title: { en: "Governance", es: "Gobernanza" },
+    blurb: { en: "Standards, tiering and cleanup of the platform inventory.", es: "Estándares, tieraje y limpieza del inventario de la plataforma." },
     accent: Colors.Text.Primary.Default,
     items: [
       {
         to: "/compliance",
-        title: "Cumplimiento",
-        desc: "8 SPECs del estándar AKS (limits, requests, probes, non-root, Helm).",
+        title: { en: "Compliance", es: "Cumplimiento" },
+        desc: { en: "8 SPECs of the AKS standard (limits, requests, probes, non-root, Helm).", es: "8 SPECs del estándar AKS (limits, requests, probes, non-root, Helm)." },
         Icon: CheckmarkIcon,
-        unit: "workloads",
+        unit: { en: "workloads", es: "workloads" },
       },
       {
         to: "/orphans",
-        title: "Huérfanos",
-        desc: "Workloads sin réplicas o sin dueño en el catálogo.",
+        title: { en: "Orphans", es: "Huérfanos" },
+        desc: { en: "Workloads with no replicas or no owner in the catalog.", es: "Workloads sin réplicas o sin dueño en el catálogo." },
         Icon: FilterOutIcon,
-        unit: "workloads",
+        unit: { en: "workloads", es: "workloads" },
       },
       {
         to: "/tiers",
-        title: "Tiers",
-        desc: "Catálogo de propiedad que prioriza cada hallazgo por impacto de negocio.",
+        title: { en: "Tiers", es: "Tiers" },
+        desc: { en: "Ownership catalog that prioritizes each finding by business impact.", es: "Catálogo de propiedad que prioriza cada hallazgo por impacto de negocio." },
         Icon: GroupIcon,
-        unit: "repos",
+        unit: { en: "repos", es: "repos" },
         catalog: true,
       },
       {
         to: "/tier-pending",
-        title: "Pendientes de tier",
-        desc: "Workloads sin tier declarado, repartidos por el squad al que hay que reclamárselo.",
+        title: { en: "Pending tiers", es: "Pendientes de tier" },
+        desc: { en: "Workloads without a declared tier, split by the squad to ask.", es: "Workloads sin tier declarado, repartidos por el squad al que hay que reclamárselo." },
         Icon: GroupIcon,
-        unit: "workloads",
+        unit: { en: "workloads", es: "workloads" },
       },
     ],
   },
@@ -178,8 +180,12 @@ const SECTIONS: ModuleSection[] = [
 const ALL_ITEMS = SECTIONS.flatMap((section) => section.items);
 const FINDING_ROUTES = ALL_ITEMS.filter((item) => !item.catalog).map((item) => item.to);
 
-const plain = new Intl.NumberFormat("es");
-const money = (value: number): string => `$${plain.format(Math.round(value))}`;
+const NUMBER_FORMATS: Record<Lang, Intl.NumberFormat> = {
+  en: new Intl.NumberFormat("en"),
+  es: new Intl.NumberFormat("es"),
+};
+const plain = (value: number, lang: Lang): string => NUMBER_FORMATS[lang].format(value);
+const money = (value: number, lang: Lang): string => `$${plain(Math.round(value), lang)}`;
 
 interface Severity {
   label: string;
@@ -188,10 +194,15 @@ interface Severity {
 }
 
 /** Estado de un módulo según su propio volumen de hallazgos. */
-const severityOf = (item: ModuleItem, metric?: HomeMetric): Severity | undefined => {
+const severityOf = (
+  item: ModuleItem,
+  t: UiText,
+  lang: Lang,
+  metric?: HomeMetric,
+): Severity | undefined => {
   if (item.catalog) {
     return {
-      label: "Catálogo",
+      label: t.home.catalog,
       fg: Colors.Text.Neutral.Default,
       bg: Colors.Background.Container.Neutral.Default,
     };
@@ -199,20 +210,20 @@ const severityOf = (item: ModuleItem, metric?: HomeMetric): Severity | undefined
   if (!metric) return undefined;
   if (metric.criticos > 0) {
     return {
-      label: `${plain.format(metric.criticos)} ${metric.criticos === 1 ? "crítico" : "críticos"}`,
+      label: t.home.criticals(plain(metric.criticos, lang), metric.criticos === 1),
       fg: Colors.Text.Critical.Default,
       bg: Colors.Background.Container.Critical.Default,
     };
   }
   if (metric.hallazgos > 0) {
     return {
-      label: "Atención",
+      label: t.home.attention,
       fg: Colors.Text.Warning.Default,
       bg: Colors.Background.Container.Warning.Default,
     };
   }
   return {
-    label: "Sin hallazgos",
+    label: t.home.noFindings,
     fg: Colors.Text.Success.Default,
     bg: Colors.Background.Container.Success.Default,
   };
@@ -265,9 +276,9 @@ const ModuleCard = ({ item, accent, onResult }: ModuleCardProps) => {
     }
   }, [metric, item.to, onResult]);
 
-  const severity = severityOf(item, metric);
+  const { t, lang, L } = useT();
+  const severity = severityOf(item, t, lang, metric);
   const analysisWindow = HOME_WINDOWS[item.to];
-  const { lang } = useT();
 
   return (
     <RouterLink
@@ -312,9 +323,9 @@ const ModuleCard = ({ item, accent, onResult }: ModuleCardProps) => {
 
         <Flex flexDirection="column" gap={4} style={{ flex: 1 }}>
           <Heading level={6} style={{ color: Colors.Text.Neutral.Default }}>
-            {item.title}
+            {L(item.title)}
           </Heading>
-          <Text style={{ color: Colors.Text.Neutral.Subdued }}>{item.desc}</Text>
+          <Text style={{ color: Colors.Text.Neutral.Subdued }}>{L(item.desc)}</Text>
         </Flex>
 
         <Flex
@@ -324,13 +335,13 @@ const ModuleCard = ({ item, accent, onResult }: ModuleCardProps) => {
           style={{ borderTop: `1px solid ${Colors.Border.Neutral.Subdued}` }}
         >
           {isLoading && <Skeleton width={72} height={28} />}
-          {error && <Text style={{ color: Colors.Text.Critical.Default }}>sin datos</Text>}
+          {error && <Text style={{ color: Colors.Text.Critical.Default }}>{t.home.noData}</Text>}
           {metric && (
             <>
               <span style={{ fontSize: 28, fontWeight: 600, color: Colors.Text.Neutral.Default }}>
-                {plain.format(metric.hallazgos)}
+                {plain(metric.hallazgos, lang)}
               </span>
-              <Text style={{ color: Colors.Text.Neutral.Subdued }}>{item.unit}</Text>
+              <Text style={{ color: Colors.Text.Neutral.Subdued }}>{L(item.unit)}</Text>
             </>
           )}
         </Flex>
@@ -363,36 +374,40 @@ const BreakdownLine = ({ label, value, source }: { label: string; value: string;
  * miden el mismo dinero desde ángulos distintos, así que además del desglose
  * hay que decir que se solapan: es un techo, no una factura.
  */
-const WasteBreakdown = ({ metrics }: { metrics: Record<string, HomeMetric> }) => (
-  <Flex flexDirection="column" gap={8} style={{ maxWidth: 380 }}>
-    <Text style={{ color: Colors.Text.Neutral.Default }}>
-      Se valoriza la capacidad reservada y no aprovechada, a{" "}
-      <strong>{money(USD_VCPU_MONTH)} por vCPU al mes</strong> y{" "}
-      <strong>{money(USD_GB_MONTH)} por GB de RAM al mes</strong> (nodo AKS Dv5 aproximado,
-      prorrateado mitad CPU y mitad memoria).
-    </Text>
-    <BreakdownLine
-      label="Rightsizing"
-      source="— lo que los pods reservan y no usan (request menos uso real)."
-      value={money(metrics["/rightsizing"]?.usd ?? 0)}
-    />
-    <BreakdownLine
-      label="Ociosos"
-      source="— la reserva completa de los workloads sin actividad."
-      value={money(metrics["/idle"]?.usd ?? 0)}
-    />
-    <BreakdownLine
-      label="Nodos"
-      source="— capacidad de nodo que ningún pod solicitó."
-      value={money(metrics["/nodes"]?.usd ?? 0)}
-    />
-    <Text style={{ color: Colors.Text.Neutral.Subdued }}>
-      Los tres se solapan: un pod sobredimensionado también deja capacidad libre en su nodo, y
-      un workload ocioso aparece además con slack en rightsizing. Tómalo como el techo del
-      desperdicio, no como una factura.
-    </Text>
-  </Flex>
-);
+const WasteBreakdown = ({ metrics }: { metrics: Record<string, HomeMetric> }) => {
+  const { t, lang } = useT();
+  const [lead, vcpu, and, gb, tail] = t.home.wasteIntro(
+    money(USD_VCPU_MONTH, lang),
+    money(USD_GB_MONTH, lang),
+  );
+  return (
+    <Flex flexDirection="column" gap={8} style={{ maxWidth: 380 }}>
+      <Text style={{ color: Colors.Text.Neutral.Default }}>
+        {lead}
+        <strong>{vcpu}</strong>
+        {and}
+        <strong>{gb}</strong>
+        {tail}
+      </Text>
+      <BreakdownLine
+        label={t.nav["/rightsizing"].label}
+        source={t.home.wasteRightsizing}
+        value={money(metrics["/rightsizing"]?.usd ?? 0, lang)}
+      />
+      <BreakdownLine
+        label={t.nav["/idle"].label}
+        source={t.home.wasteIdle}
+        value={money(metrics["/idle"]?.usd ?? 0, lang)}
+      />
+      <BreakdownLine
+        label={t.nav["/nodes"].label}
+        source={t.home.wasteNodes}
+        value={money(metrics["/nodes"]?.usd ?? 0, lang)}
+      />
+      <Text style={{ color: Colors.Text.Neutral.Subdued }}>{t.home.wasteOverlap}</Text>
+    </Flex>
+  );
+};
 
 interface StatProps {
   Icon: IconType;
@@ -435,6 +450,7 @@ const Stat = ({ Icon, value, label, ready, detail }: StatProps) => (
 );
 
 export const Home = () => {
+  const { t, lang, L } = useT();
   const [metrics, setMetrics] = useState<Record<string, HomeMetric>>({});
 
   const onResult = useCallback((route: string, metric: HomeMetric) => {
@@ -482,9 +498,9 @@ export const Home = () => {
             fontSize: 12,
           }}
         >
-          Vista general del clúster
+          {t.home.eyebrow}
         </Text>
-        <Heading level={1}>¿Cuántos problemas tengo ahora mismo?</Heading>
+        <Heading level={1}>{t.home.title}</Heading>
         <Paragraph style={{ color: Colors.Text.Neutral.Subdued }}>
           {/*
             De dónde sale el nombre: se pregunta seguido, pero es una respuesta
@@ -495,16 +511,13 @@ export const Home = () => {
           <TerminologyOverlay>
             <TerminologyOverlay.Trigger>ArchorKube</TerminologyOverlay.Trigger>
             <TerminologyOverlay.Description>
-              <em>Arch</em> de arquitectura y <em>arconte</em> —del griego <em>arkhon</em>,
-              «el que gobierna»: los magistrados que orquestaban el estado— sobre{" "}
-              <em>Kube</em>rnetes. Esa es la idea: no un tablero más que reporta, sino el que
-              manda en la cola, poniéndole dueño, criticidad y orden de atención a cada
-              hallazgo para que el caos operativo no se gobierne solo.
+              {/* Las partes pares van en cursiva: Arch, arconte, arkhon, Kube. */}
+              {t.home.nameExplained.map((part, i) =>
+                i % 2 === 0 ? <em key={i}>{part}</em> : part,
+              )}
             </TerminologyOverlay.Description>
-          </TerminologyOverlay>{" "}
-          revisa costos, confiabilidad y cumplimiento sobre datos en vivo de Grail. Este
-          resumen agrupa cada módulo por lo que resuelve, con el volumen de hallazgos que te
-          espera adentro y la ventana de datos que analiza cada uno.
+          </TerminologyOverlay>
+          {t.home.intro}
         </Paragraph>
       </Flex>
 
@@ -528,30 +541,30 @@ export const Home = () => {
           <Stat
             Icon={WarningIcon}
             ready={totals.ready}
-            value={plain.format(totals.hallazgos)}
-            label="Hallazgos abiertos en el clúster"
-            detail="Suma de las filas que devuelve cada módulo de hallazgos, con el mismo criterio que verás al entrar. El catálogo de Tiers no suma: es inventario, no trabajo pendiente."
+            value={plain(totals.hallazgos, lang)}
+            label={t.home.kpiFindings}
+            detail={t.home.kpiFindingsDetail}
           />
           <Stat
             Icon={CriticalIcon}
             ready={totals.ready}
-            value={plain.format(totals.criticos)}
-            label="De máxima prioridad en su módulo"
-            detail="Hallazgos en el peor escalón que define cada módulo: throttling crítico en rightsizing, OOM kill en preventiva, ocioso confirmado, riesgo de caída con los tres factores, y así. Cada módulo fija el suyo."
+            value={plain(totals.criticos, lang)}
+            label={t.home.kpiTop}
+            detail={t.home.kpiTopDetail}
           />
           <Stat
             Icon={MoneyIcon}
             ready={totals.ready}
-            value={money(totals.usd)}
-            label="Desperdicio estimado por mes"
+            value={money(totals.usd, lang)}
+            label={t.home.kpiWaste}
             detail={<WasteBreakdown metrics={metrics} />}
           />
           <Stat
             Icon={CheckmarkIcon}
             ready={totals.cumplimiento !== undefined}
             value={`${totals.cumplimiento ?? 0}%`}
-            label="Cumplimiento del estándar AKS"
-            detail="Promedio del porcentaje de cumplimiento de las 8 SPECs del estándar AKS (limits, requests, probes, non-root, Helm) sobre todos los workloads evaluados."
+            label={t.home.kpiCompliance}
+            detail={t.home.kpiComplianceDetail}
           />
         </div>
       </Flex>
@@ -563,7 +576,7 @@ export const Home = () => {
         const sectionTotal = loaded.reduce((sum, item) => sum + metrics[item.to].hallazgos, 0);
 
         return (
-          <Flex key={section.title} flexDirection="column" gap={12}>
+          <Flex key={section.title.en} flexDirection="column" gap={12}>
             <Flex
               justifyContent="space-between"
               alignItems="baseline"
@@ -572,15 +585,15 @@ export const Home = () => {
               style={{ borderBottom: `1px solid ${Colors.Border.Neutral.Subdued}` }}
             >
               <Heading level={3} style={{ color: section.accent }}>
-                {section.title}
+                {L(section.title)}
               </Heading>
               {loaded.length === findings.length && (
                 <Text style={{ color: Colors.Text.Neutral.Subdued, whiteSpace: "nowrap" }}>
-                  {plain.format(sectionTotal)} hallazgos
+                  {t.home.findings(plain(sectionTotal, lang))}
                 </Text>
               )}
             </Flex>
-            <Text style={{ color: Colors.Text.Neutral.Subdued }}>{section.blurb}</Text>
+            <Text style={{ color: Colors.Text.Neutral.Subdued }}>{L(section.blurb)}</Text>
             <div
               style={{
                 display: "grid",

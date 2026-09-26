@@ -6,7 +6,7 @@ import {
   INSTANCE_HOURLY_USD,
   OWNERSHIP_KEYS,
 } from "../config/site";
-import { EXTRA_FILTERS, INVALID_EXTRA_FILTERS } from "../config/extraFilters";
+import { EXTRA_FILTERS, INVALID_EXTRA_FILTERS, filterLabel } from "../config/extraFilters";
 import type { Lang, Localized } from "../i18n";
 import { ownership } from "../ownership";
 import { excludedNamespacesClause } from "../queries/namespaces";
@@ -221,8 +221,8 @@ const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
     suggestions++;
     items.push(
       l(
-        `Optional filter "${filter.label}" was ignored: its id "${filter.id}" must use only letters and numbers (no dashes), and it needs a key.`,
-        `El filtro opcional "${filter.label}" se ignoró: su id "${filter.id}" debe usar solo letras y números (sin guiones), y necesita una clave.`,
+        `Optional filter "${filterLabel(filter, lang)}" was ignored: its id "${filter.id}" must use only letters and numbers (no dashes), and it needs a key.`,
+        `El filtro opcional "${filterLabel(filter, lang)}" se ignoró: su id "${filter.id}" debe usar solo letras y números (sin guiones), y necesita una clave.`,
       ),
     );
   }
@@ -235,17 +235,17 @@ const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
     items.push(
       share === 0
         ? l(
-            `Optional filter "${filter.label}": "${filter.key}" wasn't found, so the filter is hidden.`,
-            `Filtro opcional "${filter.label}": no se encontró "${filter.key}", así que el filtro queda oculto.`,
+            `Optional filter "${filterLabel(filter, lang)}": "${filter.key}" wasn't found, so the filter is hidden.`,
+            `Filtro opcional "${filterLabel(filter, lang)}": no se encontró "${filter.key}", así que el filtro queda oculto.`,
           )
         : single
           ? l(
-              `Optional filter "${filter.label}": "${filter.key}" is on ${share}% of workloads but has a single value${sample(filter.key)}, so filtering by it changes nothing.`,
-              `Filtro opcional "${filter.label}": "${filter.key}" está en el ${share}% de los workloads pero tiene un solo valor${sample(filter.key)}, así que filtrar por él no cambia nada.`,
+              `Optional filter "${filterLabel(filter, lang)}": "${filter.key}" is on ${share}% of workloads but has a single value${sample(filter.key)}, so filtering by it changes nothing.`,
+              `Filtro opcional "${filterLabel(filter, lang)}": "${filter.key}" está en el ${share}% de los workloads pero tiene un solo valor${sample(filter.key)}, así que filtrar por él no cambia nada.`,
             )
           : l(
-              `Optional filter "${filter.label}": "${filter.key}" is on ${share}% of workloads${sample(filter.key)}.`,
-              `Filtro opcional "${filter.label}": "${filter.key}" está en el ${share}% de los workloads${sample(filter.key)}.`,
+              `Optional filter "${filterLabel(filter, lang)}": "${filter.key}" is on ${share}% of workloads${sample(filter.key)}.`,
+              `Filtro opcional "${filterLabel(filter, lang)}": "${filter.key}" está en el ${share}% de los workloads${sample(filter.key)}.`,
             ),
     );
   }

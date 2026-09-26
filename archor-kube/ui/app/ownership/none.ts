@@ -12,12 +12,19 @@ import type { OwnershipProvider } from "./types";
  */
 export const noneProvider: OwnershipProvider = {
   id: "none",
-  label: "Sin propiedad",
-  about: [
-    "No hay fuente de propiedad configurada: los hallazgos se muestran sin",
-    "agrupar por equipo. Todos los análisis funcionan igual; solo se pierde la",
-    "priorización por tier.",
-  ].join(" "),
+  label: { en: "No ownership", es: "Sin propiedad" },
+  about: {
+    en: [
+      "No ownership source is configured: findings show up without being",
+      "grouped by team. Every analysis works the same; only tier prioritization",
+      "is lost.",
+    ].join(" "),
+    es: [
+      "No hay fuente de propiedad configurada: los hallazgos se muestran sin",
+      "agrupar por equipo. Todos los análisis funcionan igual; solo se pierde la",
+      "priorización por tier.",
+    ].join(" "),
+  },
 
   enrich: (_sourceField, suffix = "") => {
     const s = suffix;

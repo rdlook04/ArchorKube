@@ -1,5 +1,5 @@
 import type { OwnershipProvider } from "./types";
-import { OWNERSHIP_FIELDS } from "./types";
+import { OWNERSHIP_FIELDS, providerText } from "./types";
 import { canonicalizeClause, sanitizeClause } from "./canonical";
 
 /**
@@ -42,14 +42,26 @@ ${sanitizeClause(suffix)}`,
 
   return {
     id: active.map((p) => p.id).join("+"),
-    label: active.map((p) => p.label).join(" → "),
-    about: [
-      "Se consultan varias fuentes en orden y gana la primera que responde,",
-      "campo por campo: un workload puede sacar el squad de una fuente y el",
-      "tier de otra. Orden aplicado: ",
-      active.map((p, i) => `${i + 1}) ${p.label}`).join(", "),
-      ".",
-    ].join(""),
+    label: {
+      en: active.map((p) => providerText(p.label, "en")).join(" → "),
+      es: active.map((p) => providerText(p.label, "es")).join(" → "),
+    },
+    about: {
+      en: [
+        "Several sources are queried in order and the first one that answers wins,",
+        "field by field: a workload can take its squad from one source and its",
+        "tier from another. Order applied: ",
+        active.map((p, i) => `${i + 1}) ${providerText(p.label, "en")}`).join(", "),
+        ".",
+      ].join(""),
+      es: [
+        "Se consultan varias fuentes en orden y gana la primera que responde,",
+        "campo por campo: un workload puede sacar el squad de una fuente y el",
+        "tier de otra. Orden aplicado: ",
+        active.map((p, i) => `${i + 1}) ${providerText(p.label, "es")}`).join(", "),
+        ".",
+      ].join(""),
+    },
 
     enrich: (sourceField, suffix = "") => {
       // Cada proveedor escribe en su propio juego de campos (_c0, _c1, …) y

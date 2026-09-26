@@ -1,3 +1,5 @@
+import type { Lang, Localized } from "../i18n";
+
 /**
  * Capa de propiedad (ownership): cómo un workload de Kubernetes se convierte en
  * `{ tier, squad, tribu, appCode }`.
@@ -13,6 +15,16 @@
  * CONTRATO: `enrich()` debe dejar disponibles exactamente estos cuatro campos,
  * en null cuando no se conocen. Ningún módulo debe asumir que existen otros.
  */
+/**
+ * Texto de un proveedor: simple (un solo idioma, como puede venir de un
+ * port.ts local) o en los dos idiomas.
+ */
+export type ProviderText = string | Localized;
+
+/** Resuelve un ProviderText al idioma pedido. */
+export const providerText = (text: ProviderText, lang: Lang): string =>
+  typeof text === "string" ? text : text[lang];
+
 export const OWNERSHIP_FIELDS = ["tier", "squad", "tribu", "appCode"] as const;
 
 export type OwnershipField = (typeof OWNERSHIP_FIELDS)[number];
@@ -21,13 +33,13 @@ export interface OwnershipProvider {
   /** Identificador estable; se persiste en la configuración de la app. */
   id: string;
   /** Nombre visible en Settings. */
-  label: string;
+  label: ProviderText;
   /**
    * Explicación de la fuente para el panel "de dónde salen estos datos".
    * Se muestra tal cual al usuario, así que debe decir qué pasa cuando el dato
    * falta, no solo cuando está.
    */
-  about: string;
+  about: ProviderText;
   /**
    * Fragmento DQL que agrega los campos del contrato a partir de `sourceField`
    * (el campo de la consulta que trae el nombre del workload/contenedor).
