@@ -1,7 +1,7 @@
 import type { QueryDef, QueryParams } from "./types";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { rangeWindow } from "./analysisWindow";
-import { noneLabel } from "./lang";
+import { categoryClause, type ChartDimension } from "./dimensions";
 
 /**
  * M9 — Errores críticos (SPEC §4).
@@ -43,7 +43,7 @@ ${tierLookupJoin("k8s.container.name")}${tierFilterClause(params, "k8s.container
 };
 
 /** Dimensión del eje de la gráfica categórica de severidad. */
-export type BreakdownDimension = "tier" | "squad" | "tribu";
+export type BreakdownDimension = ChartDimension;
 
 /**
  * Conteo de contenedores por severidad agrupado por una dimensión.
@@ -53,8 +53,8 @@ export const errorSeverityBreakdown = (
   dimension: BreakdownDimension,
   params?: QueryParams,
 ): string =>
-  `${criticalErrors.build(params)}
-| summarize contenedores = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), severidad }
+  `${criticalErrors.build(params)}${categoryClause(dimension, params, "k8s.container.name")}
+| summarize contenedores = count(), by:{ category, severidad }
 | sort category asc`;
 
 /** Resumen ejecutivo: errores por tier. */

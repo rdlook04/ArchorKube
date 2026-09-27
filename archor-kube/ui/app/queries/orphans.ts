@@ -2,7 +2,7 @@ import type { QueryDef, QueryParams } from "./types";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { snapshotWindow } from "./analysisWindow";
 import { excludedNamespacesClause } from "./namespaces";
-import { noneLabel } from "./lang";
+import { categoryClause, type ChartDimension } from "./dimensions";
 
 /**
  * M6 — Huérfanos (SPEC §4).
@@ -40,7 +40,7 @@ ${tierLookupJoin("k8s.workload.name")}
 };
 
 /** Dimensión del eje de la gráfica categórica de motivos. */
-export type BreakdownDimension = "tier" | "squad" | "tribu";
+export type BreakdownDimension = ChartDimension;
 
 /**
  * Conteo de workloads por motivo agrupado por una dimensión (tier/squad/tribu).
@@ -51,8 +51,8 @@ export const orphanBreakdown = (
   dimension: BreakdownDimension,
   params?: QueryParams,
 ): string =>
-  `${orphanWorkloads.build(params)}
-| summarize workloads = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), motivo }
+  `${orphanWorkloads.build(params)}${categoryClause(dimension, params)}
+| summarize workloads = count(), by:{ category, motivo }
 | sort category asc`;
 
 /** Resumen ejecutivo: huérfanos por motivo. */

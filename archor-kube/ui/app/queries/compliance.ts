@@ -3,7 +3,8 @@ import { deploymentIdJoin } from "./links";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { snapshotWindow } from "./analysisWindow";
 import { excludedNamespacesClause } from "./namespaces";
-import { noneLabel, qx } from "./lang";
+import { qx } from "./lang";
+import { categoryClause, type ChartDimension } from "./dimensions";
 
 /**
  * M12 — Cumplimiento de estándar AKS (8 SPECs de buenas prácticas).
@@ -130,7 +131,7 @@ ${deploymentIdJoin("`k8s.workload.name`")}
 };
 
 /** Dimensión del eje de la gráfica categórica de criticidad. */
-export type BreakdownDimension = "tier" | "squad" | "tribu";
+export type BreakdownDimension = ChartDimension;
 
 /**
  * Conteo de workloads por criticidad agrupado por una dimensión (tier/squad/
@@ -140,8 +141,8 @@ export const complianceBreakdown = (
   dimension: BreakdownDimension,
   params?: QueryParams,
 ): string =>
-  `${complianceByWorkload(params)}
-| summarize workloads = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), criticidad }
+  `${complianceByWorkload(params)}${categoryClause(dimension, params)}
+| summarize workloads = count(), by:{ category, criticidad }
 | sort category asc`;
 
 /**

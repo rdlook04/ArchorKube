@@ -2,7 +2,7 @@ import type { QueryDef, QueryParams } from "./types";
 import { deploymentIdJoin } from "./links";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { rangeWindow } from "./analysisWindow";
-import { noneLabel } from "./lang";
+import { categoryClause, type ChartDimension } from "./dimensions";
 
 /**
  * M11 — Cuellos de botella (SPEC §4).
@@ -50,7 +50,7 @@ ${tierLookupJoin("k8s.workload.name")}${tierFilterClause(params)}
 };
 
 /** Dimensión del eje de la gráfica categórica de severidad. */
-export type BreakdownDimension = "tier" | "squad" | "tribu";
+export type BreakdownDimension = ChartDimension;
 
 /**
  * Conteo de workloads por severidad de throttling agrupado por una dimensión.
@@ -61,8 +61,8 @@ export const throttlingBreakdown = (
   dimension: BreakdownDimension,
   params?: QueryParams,
 ): string =>
-  `${throttlingPeaks.build(params)}
-| summarize workloads = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), severidad }
+  `${throttlingPeaks.build(params)}${categoryClause(dimension, params)}
+| summarize workloads = count(), by:{ category, severidad }
 | sort category asc`;
 
 /** Resumen ejecutivo: workloads con throttling por severidad y tier. */

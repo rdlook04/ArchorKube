@@ -5,7 +5,8 @@ import { serviceRequestsJoin } from "./serviceRequests";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { rangeWindow } from "./analysisWindow";
 import { excludedNamespacesClause } from "./namespaces";
-import { noneLabel, qx } from "./lang";
+import { qx } from "./lang";
+import { categoryClause, type ChartDimension } from "./dimensions";
 
 /**
  * Ancho de las bandas de memoria reservada: 0–200 MB, 201–400 MB, y así.
@@ -107,44 +108,50 @@ ${tierLookupJoin("k8s.workload.name")}${tierFilterClause(params)}
 };
 
 /** Dimensión del eje de la gráfica categórica de veredictos. */
-export type BreakdownDimension = "tier" | "squad" | "tribu" | "rango_mem" | "uso_vs_reserva";
+export type BreakdownDimension = ChartDimension | IdleDimension;
 
-/** Etiqueta de la barra cuando la dimensión no tiene valor en esa fila. */
-const breakdownFallback = (dimension: BreakdownDimension, params?: QueryParams): string =>
-  dimension === "rango_mem"
-    ? memRangeUnknown(params)
-    : dimension === "uso_vs_reserva"
-      ? "SIN_RESERVA"
-      : noneLabel(dimension, params);
+/** Ejes propios de Ociosos, además de los compartidos (queries/dimensions.ts). */
+type IdleDimension = "rango_mem" | "uso_vs_reserva";
 
 /**
- * Clave de orden de las barras. Las dimensiones del catálogo se ordenan
- * alfabéticamente; las bandas de memoria, por su número de banda, porque
- * "1001 - 1200 MB" iría antes que "201 - 400 MB" si se ordenara como texto.
- * La banda sin dato se manda al final.
+ * Clave de orden de las barras de los ejes propios. Las bandas de memoria se
+ * ordenan por su número de banda, porque "1001 - 1200 MB" iría antes que
+ * "201 - 400 MB" si se ordenara como texto; la banda sin dato va al final.
+ * Los ejes compartidos se ordenan alfabéticamente.
  */
-const BREAKDOWN_ORDER: Record<BreakdownDimension, string> = {
-  tier: "0",
-  squad: "0",
-  tribu: "0",
-  rango_mem: "if(isNull(mem_bucket) or mem_bucket < 0, 999999, else: mem_bucket)",
-  uso_vs_reserva: `if(uso_vs_reserva == "POR_ENCIMA", 0,
+const IDLE_DIMENSIONS: Record<IdleDimension, { order: string; fallback: (params?: QueryParams) => string }> = {
+  rango_mem: {
+    order: "if(isNull(mem_bucket) or mem_bucket < 0, 999999, else: mem_bucket)",
+    fallback: memRangeUnknown,
+  },
+  uso_vs_reserva: {
+    order: `if(uso_vs_reserva == "POR_ENCIMA", 0,
     else: if(uso_vs_reserva == "AL_LIMITE", 1,
     else: if(uso_vs_reserva == "AJUSTADO", 2,
     else: if(uso_vs_reserva == "HOLGADO", 3, else: 4))))`,
+    fallback: () => "SIN_RESERVA",
+  },
 };
 
+const isIdleDimension = (dimension: BreakdownDimension): dimension is IdleDimension =>
+  dimension in IDLE_DIMENSIONS;
+
 /**
- * Conteo de workloads por veredicto agrupado por una dimensión (tier/squad/
- * tribu, banda de memoria reservada o uso vs. reserva). Alimenta el
+ * Conteo de workloads por veredicto agrupado por una dimensión (las
+ * compartidas, banda de memoria reservada o uso vs. reserva). Alimenta el
  * CategoricalBarChart apilado: cada barra = una categoría de la dimensión,
  * cada segmento = un veredicto de la Regla de Oro.
  */
-export const idleBreakdown = (dimension: BreakdownDimension, params?: Parameters<typeof idleWorkloads.build>[0]): string =>
-  `${idleWorkloads.build(params)}
-| fieldsAdd category = coalesce(${dimension}, "${breakdownFallback(dimension, params)}"), orden = ${BREAKDOWN_ORDER[dimension]}
+export const idleBreakdown = (dimension: BreakdownDimension, params?: Parameters<typeof idleWorkloads.build>[0]): string => {
+  const category = isIdleDimension(dimension)
+    ? `
+| fieldsAdd category = coalesce(${dimension}, "${IDLE_DIMENSIONS[dimension].fallback(params)}"), orden = ${IDLE_DIMENSIONS[dimension].order}`
+    : `${categoryClause(dimension, params)}
+| fieldsAdd orden = 0`;
+  return `${idleWorkloads.build(params)}${category}
 | summarize workloads = count(), by:{ category, orden, veredicto }
 | sort orden asc, category asc`;
+};
 
 /** Resumen ejecutivo: candidatos por veredicto y tier. */
 export const idleSummary: QueryDef = {

@@ -3,7 +3,7 @@ import { deploymentIdJoin } from "./links";
 import { USD_GB_MONTH, USD_VCPU_MONTH } from "./costModel";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { rangeWindow } from "./analysisWindow";
-import { noneLabel } from "./lang";
+import { categoryClause, type ChartDimension } from "./dimensions";
 
 /**
  * M1/M2 — Rightsizing CPU y Memoria (SPEC §4).
@@ -119,7 +119,7 @@ ${tierLookupJoin("k8s.workload.name")}${tierFilterClause(params)}
 };
 
 /** Dimensión del eje de la gráfica categórica de problemas. */
-export type BreakdownDimension = "tier" | "squad" | "tribu";
+export type BreakdownDimension = ChartDimension;
 
 /**
  * Conteo de pods por problema agrupado por una dimensión (tier/squad/tribu).
@@ -129,8 +129,8 @@ export const rightsizingBreakdown = (
   dimension: BreakdownDimension,
   params?: QueryParams,
 ): string =>
-  `${rightsizingReport.build(params)}
-| summarize pods = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), problema }
+  `${rightsizingReport.build(params)}${categoryClause(dimension, params)}
+| summarize pods = count(), by:{ category, problema }
 | sort category asc`;
 
 /** Resumen ejecutivo: pods con hallazgo por problema y tier, con slack valorizado. */

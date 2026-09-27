@@ -3,7 +3,7 @@ import { deploymentIdJoin } from "./links";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { snapshotWindow } from "./analysisWindow";
 import { excludedNamespacesClause } from "./namespaces";
-import { noneLabel } from "./lang";
+import { categoryClause, type ChartDimension } from "./dimensions";
 
 /**
  * M5 — Riesgo de caída por workload (SPEC §4).
@@ -60,7 +60,7 @@ ${tierLookupJoin("k8s.workload.name")}${tierFilterClause(params)}
 };
 
 /** Dimensión del eje de la gráfica categórica de niveles de riesgo. */
-export type BreakdownDimension = "tier" | "squad" | "tribu";
+export type BreakdownDimension = ChartDimension;
 
 /**
  * Conteo de workloads por nivel de riesgo agrupado por una dimensión.
@@ -70,8 +70,8 @@ export const riskBreakdown = (
   dimension: BreakdownDimension,
   params?: QueryParams,
 ): string =>
-  `${workloadRisk.build(params)}
-| summarize workloads = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), nivel }
+  `${workloadRisk.build(params)}${categoryClause(dimension, params)}
+| summarize workloads = count(), by:{ category, nivel }
 | sort category asc`;
 
 /** Resumen ejecutivo: workloads por score de riesgo y tier. */

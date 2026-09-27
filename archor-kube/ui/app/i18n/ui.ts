@@ -309,6 +309,7 @@ export const en = {
   },
   chart: {
     groupBy: "Group by",
+    others: (count: number) => `(${count} others)`,
     loading: "Loading chart",
     loadingTrend: "Loading node trend",
     noData: "(no data)",
@@ -320,6 +321,8 @@ export const en = {
       tier: "Tier",
       squad: "Squad",
       tribu: "Tribe",
+      cluster: "Cluster",
+      namespace: "Namespace",
       rango_mem: "Reserved memory range",
       uso_vs_reserva: "Usage vs. reservation",
     } as Record<string, string>,
@@ -711,6 +714,7 @@ export const es: UiText = {
   },
   chart: {
     groupBy: "Agrupar por",
+    others: (count: number) => `(otros ${count})`,
     loading: "Cargando gráfica",
     loadingTrend: "Cargando tendencia de nodos",
     noData: "(sin dato)",
@@ -722,6 +726,8 @@ export const es: UiText = {
       tier: "Tier",
       squad: "Squad",
       tribu: "Tribu",
+      cluster: "Cluster",
+      namespace: "Namespace",
       rango_mem: "Rango de memoria reservada",
       uso_vs_reserva: "Uso vs. reserva",
     },

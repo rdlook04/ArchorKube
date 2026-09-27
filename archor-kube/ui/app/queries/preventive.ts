@@ -3,7 +3,7 @@ import { deploymentIdJoin } from "./links";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { rangeWindow } from "./analysisWindow";
 import { excludedNamespacesClause } from "./namespaces";
-import { noneLabel } from "./lang";
+import { categoryClause, type ChartDimension } from "./dimensions";
 
 /**
  * M8 — Detección preventiva (SPEC §4).
@@ -58,7 +58,7 @@ ${tierLookupJoin("k8s.workload.name")}${tierFilterClause(params)}
 };
 
 /** Dimensión del eje de la gráfica categórica de señales. */
-export type BreakdownDimension = "tier" | "squad" | "tribu";
+export type BreakdownDimension = ChartDimension;
 
 /**
  * Conteo de workloads por señal agrupado por una dimensión (tier/squad/tribu).
@@ -68,8 +68,8 @@ export const preventiveBreakdown = (
   dimension: BreakdownDimension,
   params?: QueryParams,
 ): string =>
-  `${preventiveSignals.build(params)}
-| summarize workloads = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), senal }
+  `${preventiveSignals.build(params)}${categoryClause(dimension, params)}
+| summarize workloads = count(), by:{ category, senal }
 | sort category asc`;
 
 /** Resumen ejecutivo: señales por tipo y tier. */

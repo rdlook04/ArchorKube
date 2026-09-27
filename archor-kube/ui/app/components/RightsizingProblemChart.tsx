@@ -4,7 +4,6 @@ import Colors from "@dynatrace/strato-design-tokens/colors";
 import { CategoricalBarChart } from "@dynatrace/strato-components/charts";
 import type { CategoricalBarChartData } from "@dynatrace/strato-components/charts";
 import { Flex } from "@dynatrace/strato-components/layouts";
-import { Select } from "@dynatrace/strato-components/forms";
 import { Heading, Paragraph } from "@dynatrace/strato-components/typography";
 import { ProgressCircle } from "@dynatrace/strato-components/content";
 import { useDql } from "@dynatrace-sdk/react-hooks";
@@ -12,6 +11,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 import { type BreakdownDimension, rightsizingBreakdown } from "../queries/rightsizing";
 import type { TierFilterValue } from "./TierFilters";
 import { useT } from "../i18n";
+import { DimensionSelect, keepTopBars, useDimensionName } from "./DimensionSelect";
 
 /** Colores semánticos por problema (rojo=riesgo, ámbar=subdimensionado, resto=desperdicio). */
 const PROBLEM_COLORS: Record<string, string> = {
@@ -37,6 +37,7 @@ export const RightsizingProblemChart = ({ filters }: { filters: TierFilterValue 
   const { t, lang } = useT();
   const c = t.chart;
   const [dimension, setDimension] = useState<BreakdownDimension>("tier");
+  const dimensionName = useDimensionName();
   const { data, error, isLoading } = useDql({ query: rightsizingBreakdown(dimension, { ...filters, lang }) });
 
   const chartData = useMemo<CategoricalBarChartData[]>(() => {
@@ -50,25 +51,17 @@ export const RightsizingProblemChart = ({ filters }: { filters: TierFilterValue 
       bucket[problema] = (bucket[problema] ?? 0) + pods;
       byCategory.set(category, bucket);
     }
-    return [...byCategory.entries()].map(([category, value]) => ({ category, value }));
-  }, [data?.records, c.noData]);
+    return keepTopBars(
+      [...byCategory.entries()].map(([category, value]) => ({ category, value })),
+      c.others,
+    );
+  }, [data?.records, c.noData, c.others]);
 
   return (
     <Flex flexDirection="column" gap={8}>
       <Flex justifyContent="space-between" alignItems="center" gap={8}>
-        <Heading level={4}>{c.by(c.nouns.problems, c.dimension[dimension])}</Heading>
-        <Select
-          aria-label={c.groupBy}
-          value={dimension}
-          onChange={(value) => value && setDimension(value)}
-        >
-          <Select.Trigger />
-          <Select.Content>
-            <Select.Option value="tier">{c.dimension.tier}</Select.Option>
-            <Select.Option value="squad">{c.dimension.squad}</Select.Option>
-            <Select.Option value="tribu">{c.dimension.tribu}</Select.Option>
-          </Select.Content>
-        </Select>
+        <Heading level={4}>{c.by(c.nouns.problems, dimensionName(dimension))}</Heading>
+        <DimensionSelect value={dimension} onChange={setDimension} />
       </Flex>
       {isLoading && <ProgressCircle aria-label={c.loading} />}
       {error && <Paragraph>{c.dqlError} {error.message}</Paragraph>}
@@ -80,7 +73,7 @@ export const RightsizingProblemChart = ({ filters }: { filters: TierFilterValue 
           colorPalette={PROBLEM_COLORS}
           height={340}
         >
-          <CategoricalBarChart.CategoryAxis label={c.dimension[dimension]} />
+          <CategoricalBarChart.CategoryAxis label={dimensionName(dimension)} />
           <CategoricalBarChart.ValueAxis label={c.axis.pods} />
           <CategoricalBarChart.Legend position="bottom" />
         </CategoricalBarChart>

@@ -20,11 +20,22 @@ import { excludedNamespacesClause } from "./namespaces";
 export const tierLookupJoin = (sourceField: string): string =>
   ownership.enrich(sourceField);
 
-const escapeDql = (value: string): string => value.replace(/["\\]/g, "");
+export const escapeDql = (value: string): string => value.replace(/["\\]/g, "");
 
 /** Lectura de una clave de label del workload; las annotations ganan, como en el proveedor. */
-const labelValue = (key: string, ann: string, lbl: string): string =>
+export const labelValue = (key: string, ann: string, lbl: string): string =>
   `coalesce(${ann}[\`${escapeDql(key)}\`], ${lbl}[\`${escapeDql(key)}\`])`;
+
+/**
+ * Une las labels y annotations del workload con los nombres de campo pedidos.
+ * La fuente es la misma que la del proveedor de labels (cloud_application).
+ */
+export const workloadLabelsLookup = (sourceField: string, ann: string, lbl: string): string =>
+  `| lookup [
+    fetch dt.entity.cloud_application
+    | fields ${ann}_wl = entity.name, ${lbl} = cloudApplicationLabels, ${ann} = kubernetesAnnotations
+    | limit 10000
+  ], sourceField:${sourceField}, lookupField:${ann}_wl, fields:{${lbl}, ${ann}}`;
 
 /**
  * Filtros opcionales por label: solo se unen las labels del workload cuando
@@ -35,11 +46,7 @@ const extraFilterClauses = (params: QueryParams, sourceField: string): string[] 
   const chosen = EXTRA_FILTERS.filter((f) => params.extra?.[f.id]);
   if (chosen.length === 0) return [];
   return [
-    `| lookup [
-    fetch dt.entity.cloud_application
-    | fields xf_wl = entity.name, xf_lbl = cloudApplicationLabels, xf_ann = kubernetesAnnotations
-    | limit 10000
-  ], sourceField:${sourceField}, lookupField:xf_wl, fields:{xf_lbl, xf_ann}`,
+    workloadLabelsLookup(sourceField, "xf_ann", "xf_lbl"),
     ...chosen.map(
       (f) =>
         `| filter ${labelValue(f.key, "xf_ann", "xf_lbl")} == "${escapeDql(params.extra?.[f.id] ?? "")}"`,

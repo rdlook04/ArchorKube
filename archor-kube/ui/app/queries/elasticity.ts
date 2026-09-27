@@ -2,7 +2,7 @@ import type { QueryDef, QueryParams } from "./types";
 import { deploymentIdJoin } from "./links";
 import { tierFilterClause, tierLookupJoin } from "./tierJoin";
 import { snapshotWindow } from "./analysisWindow";
-import { noneLabel } from "./lang";
+import { categoryClause, type ChartDimension } from "./dimensions";
 
 /**
  * M5 (parcial) — Elasticidad HPA (SPEC §4, riesgo de caída).
@@ -62,7 +62,7 @@ ${tierLookupJoin("hpa_name")}${tierFilterClause(params, "hpa_name")}
 };
 
 /** Dimensión del eje de la gráfica categórica de elasticidad. */
-export type BreakdownDimension = "tier" | "squad" | "tribu";
+export type BreakdownDimension = ChartDimension;
 
 /**
  * Conteo de HPAs por estado de elasticidad agrupado por una dimensión.
@@ -72,8 +72,8 @@ export const elasticityBreakdown = (
   dimension: BreakdownDimension,
   params?: QueryParams,
 ): string =>
-  `${hpaElasticity.build(params)}
-| summarize hpas = count(), by:{ category = coalesce(${dimension}, "${noneLabel(dimension, params)}"), elasticidad }
+  `${hpaElasticity.build(params)}${categoryClause(dimension, params, "hpa_name")}
+| summarize hpas = count(), by:{ category, elasticidad }
 | sort category asc`;
 
 /** Resumen ejecutivo: HPAs por elasticidad y tier. */

@@ -4,7 +4,6 @@ import Colors from "@dynatrace/strato-design-tokens/colors";
 import { CategoricalBarChart } from "@dynatrace/strato-components/charts";
 import type { CategoricalBarChartData } from "@dynatrace/strato-components/charts";
 import { Flex } from "@dynatrace/strato-components/layouts";
-import { Select } from "@dynatrace/strato-components/forms";
 import { Heading, Paragraph } from "@dynatrace/strato-components/typography";
 import { ProgressCircle } from "@dynatrace/strato-components/content";
 import { useDql } from "@dynatrace-sdk/react-hooks";
@@ -12,6 +11,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 import { type BreakdownDimension, complianceBreakdown } from "../queries/compliance";
 import type { TierFilterValue } from "./TierFilters";
 import { useT } from "../i18n";
+import { DimensionSelect, keepTopBars, useDimensionName } from "./DimensionSelect";
 
 /** Colores semánticos por criticidad (mismo criterio que los highlights de la tabla). */
 const CRITICIDAD_COLORS: Record<string, string> = {
@@ -36,6 +36,7 @@ export const ComplianceChart = ({ filters }: { filters: TierFilterValue }) => {
   const { t, lang } = useT();
   const c = t.chart;
   const [dimension, setDimension] = useState<BreakdownDimension>("tier");
+  const dimensionName = useDimensionName();
   const { data, error, isLoading } = useDql({ query: complianceBreakdown(dimension, { ...filters, lang }) });
 
   const chartData = useMemo<CategoricalBarChartData[]>(() => {
@@ -49,25 +50,17 @@ export const ComplianceChart = ({ filters }: { filters: TierFilterValue }) => {
       bucket[criticidad] = (bucket[criticidad] ?? 0) + workloads;
       byCategory.set(category, bucket);
     }
-    return [...byCategory.entries()].map(([category, value]) => ({ category, value }));
-  }, [data?.records, c.noData]);
+    return keepTopBars(
+      [...byCategory.entries()].map(([category, value]) => ({ category, value })),
+      c.others,
+    );
+  }, [data?.records, c.noData, c.others]);
 
   return (
     <Flex flexDirection="column" gap={8}>
       <Flex justifyContent="space-between" alignItems="center" gap={8}>
-        <Heading level={4}>{c.by(c.nouns.criticality, c.dimension[dimension])}</Heading>
-        <Select
-          aria-label={c.groupBy}
-          value={dimension}
-          onChange={(value) => value && setDimension(value)}
-        >
-          <Select.Trigger />
-          <Select.Content>
-            <Select.Option value="tier">{c.dimension.tier}</Select.Option>
-            <Select.Option value="squad">{c.dimension.squad}</Select.Option>
-            <Select.Option value="tribu">{c.dimension.tribu}</Select.Option>
-          </Select.Content>
-        </Select>
+        <Heading level={4}>{c.by(c.nouns.criticality, dimensionName(dimension))}</Heading>
+        <DimensionSelect value={dimension} onChange={setDimension} />
       </Flex>
       {isLoading && <ProgressCircle aria-label={c.loading} />}
       {error && <Paragraph>{c.dqlError} {error.message}</Paragraph>}
@@ -79,7 +72,7 @@ export const ComplianceChart = ({ filters }: { filters: TierFilterValue }) => {
           colorPalette={CRITICIDAD_COLORS}
           height={340}
         >
-          <CategoricalBarChart.CategoryAxis label={c.dimension[dimension]} />
+          <CategoricalBarChart.CategoryAxis label={dimensionName(dimension)} />
           <CategoricalBarChart.ValueAxis label={c.axis.workloads} />
           <CategoricalBarChart.Legend position="bottom" />
         </CategoricalBarChart>
