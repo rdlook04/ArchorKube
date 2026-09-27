@@ -11,6 +11,13 @@
  * navegador, no configuración del tenant.
  */
 
+/**
+ * Oculto mientras el puente exija que cada usuario levante algo en su máquina:
+ * en la práctica nadie lo hace. El código queda listo para cuando el puente se
+ * publique como página estática (sin nada que instalar).
+ */
+export const OLLAMA_BRIDGE_ENABLED = false;
+
 const BRIDGE_URL_KEY = "archorkube.bridge.url";
 export const DEFAULT_BRIDGE_URL = "http://localhost:8765/";
 

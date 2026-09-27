@@ -5,6 +5,7 @@ import { Button } from "@dynatrace/strato-components/buttons";
 import { Menu } from "@dynatrace/strato-components/navigation";
 import { DotMenuIcon } from "@dynatrace/strato-icons";
 
+import { OLLAMA_BRIDGE_ENABLED } from "../ai/ollamaBridge";
 import { useExternalSend } from "../ai/useExternalSend";
 import { useT } from "../i18n";
 import type { Lang, Localized } from "../i18n";
@@ -76,7 +77,9 @@ export const RowMenu = ({ row, module, prompt, assistPayload, practices, links }
         <Menu.Intent payload={assistPayload(row, lang)} options={ASSIST_INTENT_OPTIONS}>
           {t.rowMenu.askAssist}
         </Menu.Intent>
-        <Menu.Item onSelect={() => sendExternal(row, "ollama")}>{t.rowMenu.sendOllama}</Menu.Item>
+        {OLLAMA_BRIDGE_ENABLED && (
+          <Menu.Item onSelect={() => sendExternal(row, "ollama")}>{t.rowMenu.sendOllama}</Menu.Item>
+        )}
         <Menu.Item onSelect={() => sendExternal(row, "clipboard")}>
           {t.rowMenu.copyForAi}
         </Menu.Item>

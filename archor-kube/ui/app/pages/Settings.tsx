@@ -15,7 +15,12 @@ import {
   Text,
 } from "@dynatrace/strato-components/typography";
 
-import { DEFAULT_BRIDGE_URL, getBridgeUrl, setBridgeUrl } from "../ai/ollamaBridge";
+import {
+  DEFAULT_BRIDGE_URL,
+  getBridgeUrl,
+  OLLAMA_BRIDGE_ENABLED,
+  setBridgeUrl,
+} from "../ai/ollamaBridge";
 import type { DataMode } from "../ai/redact";
 import { useAiSettings } from "../ai/settings";
 import { useT } from "../i18n";
@@ -146,28 +151,30 @@ export const Settings = () => {
         <Hint>{t.settings.savedForUser}</Hint>
       </Section>
 
-      <Section>
-        <Heading level={2}>{t.settings.bridgeTitle}</Heading>
-        <Paragraph>
-          {t.settings.bridgeIntro}{" "}
-          <ExternalLink href={BRIDGE_README}>{t.settings.bridgeHowTo}</ExternalLink>
-        </Paragraph>
-        <FormField>
-          <Label>{t.settings.bridgeUrl}</Label>
-          <Flex gap={8}>
-            <TextInput
-              value={bridgeUrl}
-              onChange={setBridgeUrlDraft}
-              placeholder={DEFAULT_BRIDGE_URL}
-              style={{ flex: 1 }}
-            />
-            <Button variant="emphasized" onClick={saveBridgeUrl}>
-              {t.settings.save}
-            </Button>
-          </Flex>
-        </FormField>
-        <Hint>{t.settings.bridgeHint(DEFAULT_BRIDGE_URL)}</Hint>
-      </Section>
+      {OLLAMA_BRIDGE_ENABLED && (
+        <Section>
+          <Heading level={2}>{t.settings.bridgeTitle}</Heading>
+          <Paragraph>
+            {t.settings.bridgeIntro}{" "}
+            <ExternalLink href={BRIDGE_README}>{t.settings.bridgeHowTo}</ExternalLink>
+          </Paragraph>
+          <FormField>
+            <Label>{t.settings.bridgeUrl}</Label>
+            <Flex gap={8}>
+              <TextInput
+                value={bridgeUrl}
+                onChange={setBridgeUrlDraft}
+                placeholder={DEFAULT_BRIDGE_URL}
+                style={{ flex: 1 }}
+              />
+              <Button variant="emphasized" onClick={saveBridgeUrl}>
+                {t.settings.save}
+              </Button>
+            </Flex>
+          </FormField>
+          <Hint>{t.settings.bridgeHint(DEFAULT_BRIDGE_URL)}</Hint>
+        </Section>
+      )}
     </Flex>
   );
 };

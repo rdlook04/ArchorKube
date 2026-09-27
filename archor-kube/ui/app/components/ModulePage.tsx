@@ -22,6 +22,53 @@ export const dotted =
   (row: Record<string, unknown>): unknown =>
     row[field];
 
+type Column = DataTableColumnDef<Record<string, unknown>>;
+
+// Ancho aproximado de un carácter de la tabla, más el padding y el ícono de orden.
+const CHAR_PX = 8;
+const CELL_PADDING_PX = 40;
+const MIN_COLUMN_PX = 80;
+const MAX_AUTO_COLUMN_PX = 280;
+const SAMPLE_ROWS = 50;
+
+const textLength = (value: unknown): number =>
+  typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+    ? String(value).length
+    : 0;
+
+/**
+ * Sin minWidth, la grilla reparte el ancho entre todas las columnas y con muchas
+ * columnas quedan de una letra por renglón. Cada columna sin ancho propio recibe
+ * un mínimo según su encabezado y el texto típico de sus primeras filas; si la
+ * suma no entra, la tabla hace scroll horizontal en vez de aplastarse.
+ */
+const sizeColumns = (columns: Column[], rows: Record<string, unknown>[]): Column[] => {
+  const sample = rows.slice(0, SAMPLE_ROWS);
+  return columns.map((column) => {
+    // Columnas agrupadoras o con ancho propio se dejan como están.
+    if (!("accessor" in column) || ("minWidth" in column && column.minWidth !== undefined)) {
+      return column;
+    }
+    const header = typeof column.header === "string" ? column.header : "";
+    const accessor = column.accessor;
+    const lengths = sample
+      .map((row) => {
+        if (typeof accessor === "function") return textLength(accessor(row));
+        if (typeof accessor === "string") return textLength(row[accessor]);
+        return 0;
+      })
+      .sort((a, b) => a - b);
+    // Percentil 90: un valor muy largo no ensancha toda la columna, se envuelve.
+    const typical = lengths.length ? lengths[Math.floor((lengths.length - 1) * 0.9)] : 0;
+    const chars = Math.max(header.length, typical);
+    const minWidth = Math.min(
+      MAX_AUTO_COLUMN_PX,
+      Math.max(MIN_COLUMN_PX, chars * CHAR_PX + CELL_PADDING_PX),
+    );
+    return { ...column, minWidth } as typeof column;
+  });
+};
+
 /** Compone el Markdown del panel para módulos que aún no traen `about` propio. */
 const buildAboutMarkdown = (intro?: string, executive?: ExecutiveSummary): string =>
   [
@@ -168,7 +215,7 @@ export const ModulePage = ({
   const { t, L, lang } = useT();
   // En inglés, la capa `en` reemplaza los textos en español de la página.
   const english = lang === "en" ? en : undefined;
-  const localizeColumns = (columns: DataTableColumnDef<Record<string, unknown>>[]) =>
+  const localizeColumns = (columns: Column[]) =>
     english
       ? columns.map((column) => {
           const header = english.headers[column.id];
@@ -271,7 +318,7 @@ export const ModulePage = ({
           <Flex flexDirection="column" style={{ flex: "1 1 480px", minWidth: 0 }}>
             <DataTable
               data={summary.data.records}
-              columns={localizeColumns(summaryColumns)}
+              columns={sizeColumns(localizeColumns(summaryColumns), summary.data.records)}
               sortable
               resizable
             >
@@ -326,7 +373,7 @@ export const ModulePage = ({
           </Paragraph>
           <DataTable
             data={filteredData}
-            columns={localizeColumns(detailColumns)}
+            columns={sizeColumns(localizeColumns(detailColumns), filteredData)}
             sortable
             resizable
             fullWidth
