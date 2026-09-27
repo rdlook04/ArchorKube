@@ -13,6 +13,8 @@
  *     nombra el cluster, un pod cuyo nombre contiene el del workload).
  */
 
+import type { Lang } from "../i18n";
+
 /**
  * - `placeholders`: los nombres de Kubernetes salen como $NS, $WL…; la IA arma
  *   los comandos con variables y el usuario los completa en su terminal.
@@ -117,6 +119,18 @@ const redactRow = (row: Row, mode: DataMode): { safe: Row; replacements: Replace
   return { safe, replacements };
 };
 
+/** Va al final del prompt, en el mismo idioma que el resto. */
+const PLACEHOLDER_NOTE: Record<Lang, string> = {
+  en:
+    "\n\nNote: $NS, $WL, $POD, $CONTAINER, $NODE and $HPA are placeholders for the real " +
+    "Kubernetes names, and <kube-context> is the kubectl context. Keep them as variables " +
+    "in any command you suggest.",
+  es:
+    "\n\nNota: $NS, $WL, $POD, $CONTAINER, $NODE y $HPA reemplazan los nombres reales de " +
+    "Kubernetes, y <kube-context> es el contexto de kubectl. Mantenlos como variables en " +
+    "cualquier comando que sugieras.",
+};
+
 /**
  * Arma el prompt con `build` sobre la fila ya filtrada y limpia el texto
  * resultante. Es la única puerta de salida hacia IAs fuera de Dynatrace.
@@ -125,6 +139,7 @@ export const redactForExternal = (
   build: (row: Row) => string,
   row: Row,
   mode: DataMode,
+  lang: Lang = "en",
 ): RedactedPrompt => {
   const { safe, replacements } = redactRow(row, mode);
   let text = build(safe);
@@ -139,10 +154,7 @@ export const redactForExternal = (
   }
 
   if (mode === "placeholders" && [...replaced].some((p) => p.startsWith("$"))) {
-    text +=
-      "\n\nNote: $NS, $WL, $POD, $CONTAINER, $NODE and $HPA are placeholders for the real " +
-      "Kubernetes names, and <kube-context> is the kubectl context. Keep them as variables " +
-      "in any command you suggest.";
+    text += PLACEHOLDER_NOTE[lang];
   }
 
   return { text, mode, replaced: [...replaced].sort() };

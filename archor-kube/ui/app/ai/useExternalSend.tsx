@@ -161,9 +161,14 @@ export const useExternalSend = (build: (row: Row) => string, module: string) => 
 
   return useCallback(
     (row: Row, destination: Destination) => {
-      const { text, mode, replaced } = redactForExternal(build, row, settings.dataMode);
+      const { text, mode, replaced } = redactForExternal(
+        build,
+        row,
+        settings.dataMode,
+        settings.language,
+      );
       openPreview({ destination, module, mode, original: text, replaced });
     },
-    [build, module, openPreview, settings.dataMode],
+    [build, module, openPreview, settings.dataMode, settings.language],
   );
 };

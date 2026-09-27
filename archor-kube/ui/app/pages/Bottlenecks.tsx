@@ -6,6 +6,7 @@ import { dotted, ModulePage, type ModuleEnglish } from "../components/ModulePage
 import { NodeSaturationChart } from "../components/NodeSaturationChart";
 import { throttlingPeaks, throttlingSummary } from "../queries";
 import { assistThrottlePayload, assistThrottlePrompt } from "../queries/assist";
+import { bottleneckPractices } from "../practices/flagged";
 import { workloadUrl } from "../queries/links";
 import { RowMenu, WORKLOAD_LINK } from "../components/RowMenu";
 
@@ -16,6 +17,7 @@ const BottlenecksRowMenu = ({ row }: { row: Record<string, unknown> }) => (
     module="Bottlenecks"
     prompt={assistThrottlePrompt}
     assistPayload={assistThrottlePayload}
+    practices={bottleneckPractices}
     links={[{ label: WORKLOAD_LINK, href: workloadUrl(row.deployment_id) }]}
   />
 );

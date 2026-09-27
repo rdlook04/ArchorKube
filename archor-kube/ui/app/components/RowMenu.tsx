@@ -10,6 +10,7 @@ import { useExternalSend } from "../ai/useExternalSend";
 import { useT } from "../i18n";
 import type { Lang, Localized } from "../i18n";
 import { useOpenGuide } from "../practices/flagged";
+import { standardSection } from "../practices/prompt";
 import { ASSIST_INTENT_OPTIONS } from "../queries/assist";
 
 type Row = Record<string, unknown>;
@@ -56,10 +57,19 @@ interface RowMenuProps {
 export const RowMenu = ({ row, module, prompt, assistPayload, practices, links }: RowMenuProps) => {
   const { t, L, lang } = useT();
   const openGuide = useOpenGuide();
-  // El prompt sale en el idioma del usuario y le pide a la IA responder en ese idioma.
-  const localizedPrompt = useCallback((r: Row) => prompt(r, lang), [prompt, lang]);
-  const sendExternal = useExternalSend(localizedPrompt, module);
   const flagged = practices ? practices(row) : null;
+  // Las prácticas se calculan sobre la fila original: la filtrada puede no traer
+  // los campos del veredicto. El texto del estándar no lleva datos de la fila.
+  const standard = standardSection(flagged ?? [], lang);
+  // El prompt sale en el idioma del usuario y le pide a la IA responder en ese idioma.
+  const localizedPrompt = useCallback(
+    (r: Row) => prompt(r, lang) + standard,
+    [prompt, lang, standard],
+  );
+  const sendExternal = useExternalSend(localizedPrompt, module);
+  const assist = assistPayload(row, lang);
+  const assistWithStandard =
+    typeof assist.prompt === "string" ? { ...assist, prompt: assist.prompt + standard } : assist;
 
   return (
     <Menu>
@@ -74,7 +84,7 @@ export const RowMenu = ({ row, module, prompt, assistPayload, practices, links }
             {t.rowMenu.whyFlagged}
           </Menu.Item>
         )}
-        <Menu.Intent payload={assistPayload(row, lang)} options={ASSIST_INTENT_OPTIONS}>
+        <Menu.Intent payload={assistWithStandard} options={ASSIST_INTENT_OPTIONS}>
           {t.rowMenu.askAssist}
         </Menu.Intent>
         {OLLAMA_BRIDGE_ENABLED && (

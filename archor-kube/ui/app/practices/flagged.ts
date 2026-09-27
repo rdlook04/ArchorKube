@@ -50,6 +50,10 @@ export const rightsizingPractices = (row: Row): string[] => {
   ]);
 };
 
+/** M11 Cuellos de botella: el throttling es el CPU limit estrangulando el contenedor. */
+export const bottleneckPractices = (row: Row): string[] =>
+  typeof row.severidad === "string" && row.severidad !== "" ? ["cpu-limit"] : [];
+
 /**
  * M3: solo los veredictos "OCIOSO…". Un descartado por tráfico no incumple
  * nada, y uno descartado por inestable es un problema de estabilidad.
