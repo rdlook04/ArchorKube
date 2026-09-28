@@ -6,7 +6,12 @@ import {
   INSTANCE_HOURLY_USD,
   OWNERSHIP_KEYS,
 } from "../config/site";
-import { EXTRA_FILTERS, INVALID_EXTRA_FILTERS, filterLabel } from "../config/extraFilters";
+import {
+  EXTRA_FILTERS,
+  INVALID_EXTRA_FILTERS,
+  filterLabel,
+  isNamespaceScoped,
+} from "../config/extraFilters";
 import type { Lang, Localized } from "../i18n";
 import { ownership } from "../ownership";
 import { excludedNamespacesClause } from "../queries/namespaces";
@@ -135,24 +140,14 @@ const FILTER_HINTS =
   /critical|criticality|cost|center|centro|product|producto|business|negocio|environment|env$/i;
 
 /**
- * Cuenta en qué porcentaje de workloads aparece cada clave de label o
- * annotation, y compara con las claves configuradas en `config/site.ts`.
+ * Cuántas filas llevan cada clave de label o annotation (`lbl` y `ann` en la
+ * fila), con unos pocos valores de muestra por clave: cubrir más filas no
+ * sirve si los valores no están en la misma escala (un tier "high/low" contra
+ * uno "1/2/3").
  */
-const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
+const countKeys = (records: Records, lang: Lang) => {
   const l = pick(lang);
-  const total = records.length;
-  if (total === 0) {
-    return {
-      status: "warn",
-      detail: l(
-        "No Kubernetes workloads found in dt.entity.cloud_application.",
-        "No se encontraron workloads de Kubernetes en dt.entity.cloud_application.",
-      ),
-    };
-  }
   const coverage = new Map<string, number>();
-  // Unos pocos valores por clave: cubrir más workloads no sirve si los valores
-  // no están en la misma escala (un tier "high/low" contra uno "1/2/3").
   const samples = new Map<string, Set<string>>();
   for (const r of records) {
     const all = {
@@ -172,6 +167,26 @@ const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
       ? l(` (values like: ${values.join(", ")})`, ` (valores como: ${values.join(", ")})`)
       : "";
   };
+  return { coverage, samples, sample };
+};
+
+/**
+ * Cuenta en qué porcentaje de workloads aparece cada clave de label o
+ * annotation, y compara con las claves configuradas en `config/site.ts`.
+ */
+const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
+  const l = pick(lang);
+  const total = records.length;
+  if (total === 0) {
+    return {
+      status: "warn",
+      detail: l(
+        "No Kubernetes workloads found in dt.entity.cloud_application.",
+        "No se encontraron workloads de Kubernetes en dt.entity.cloud_application.",
+      ),
+    };
+  }
+  const { coverage, samples, sample } = countKeys(records, lang);
 
   const items: string[] = [];
   let suggestions = 0;
@@ -229,7 +244,8 @@ const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
 
   // Filtros opcionales ya configurados: si la clave no existe, el selector se
   // esconde, así que conviene saberlo aquí y no por su ausencia en la UI.
-  for (const filter of EXTRA_FILTERS) {
+  // Los de namespace se revisan en su propio chequeo (namespace-labels).
+  for (const filter of EXTRA_FILTERS.filter((f) => !isNamespaceScoped(f))) {
     const share = pct(coverage.get(filter.key) ?? 0, total);
     const single = (samples.get(filter.key)?.size ?? 0) === 1;
     items.push(
@@ -300,6 +316,147 @@ const PLATFORM_NAMESPACE =
   /^(kube-|dynatrace|monitoring|prometheus|grafana|logging|elastic|ingress|nginx|traefik|istio|linkerd|cert-manager|argocd|argo-|flux|gatekeeper|kyverno|keda|velero|external-dns|calico|tigera|cilium|metallb|azure-|aks-|gke-|amazon-|aws-)/i;
 
 // ─── Chequeos ────────────────────────────────────────────────────────────────
+
+/**
+ * Labels que pone Kubernetes, la nube o un operador en todos los namespaces:
+ * no las declara nadie de la organización y no sirven como filtro.
+ */
+const SYSTEM_NAMESPACE_KEY =
+  /kubernetes\.io\/|kubernetes\.azure\.com|dynatrace\.com|gatekeeper|^control-plane$|^name$/i;
+
+/**
+ * Labels de los namespaces: los filtros opcionales con `scope: "namespace"`
+ * y claves que podrían serlo (centro de costo, entorno, dueño). Es opcional:
+ * muchos clústeres no etiquetan sus namespaces y la app funciona igual.
+ */
+const evaluateNamespaceLabels = (records: Records, lang: Lang): CheckResult => {
+  const l = pick(lang);
+  const total = records.length;
+  const { coverage, samples, sample } = countKeys(records, lang);
+  const items: string[] = [];
+  let missing = 0;
+  const configured = EXTRA_FILTERS.filter(isNamespaceScoped);
+  for (const filter of configured) {
+    const n = coverage.get(filter.key) ?? 0;
+    if (n === 0) missing++;
+    items.push(
+      n === 0
+        ? l(
+            `Optional filter "${filterLabel(filter, lang)}": no namespace has "${filter.key}", so the filter is hidden.`,
+            `Filtro opcional "${filterLabel(filter, lang)}": ningún namespace tiene "${filter.key}", así que el filtro queda oculto.`,
+          )
+        : l(
+            `Optional filter "${filterLabel(filter, lang)}": "${filter.key}" is on ${n} of ${total} namespaces${sample(filter.key)}.`,
+            `Filtro opcional "${filterLabel(filter, lang)}": "${filter.key}" está en ${n} de ${total} namespaces${sample(filter.key)}.`,
+          ),
+    );
+  }
+  const used = new Set(configured.map((f) => f.key));
+  const candidates = [...coverage.entries()]
+    .filter(
+      ([k]) =>
+        !used.has(k) &&
+        !SYSTEM_NAMESPACE_KEY.test(k) &&
+        (FILTER_HINTS.test(k) || FIELD_HINTS.squad.test(k) || FIELD_HINTS.tribu.test(k)) &&
+        (samples.get(k)?.size ?? 0) >= 2,
+    )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  for (const [key, n] of candidates) {
+    items.push(
+      l(
+        `Could be an optional filter: "${key}" is on ${n} of ${total} namespaces${sample(key)}. Add it to EXTRA_FILTERS with scope: "namespace".`,
+        `Podría ser un filtro opcional: "${key}" está en ${n} de ${total} namespaces${sample(key)}. Agrégalo a EXTRA_FILTERS con scope: "namespace".`,
+      ),
+    );
+  }
+  if (missing > 0) {
+    return {
+      status: "warn",
+      detail: l(
+        "Some namespace filters point to a label no namespace has.",
+        "Algunos filtros de namespace apuntan a una label que ningún namespace tiene.",
+      ),
+      items,
+    };
+  }
+  if (configured.length > 0) {
+    return {
+      status: "ok",
+      detail: l(
+        `Namespace filters found their labels (${total} namespaces scanned).`,
+        `Los filtros de namespace encontraron sus labels (${total} namespaces revisados).`,
+      ),
+      items,
+    };
+  }
+  return {
+    status: "info",
+    detail:
+      candidates.length > 0
+        ? l(
+            `Some namespace labels could be filters (${total} namespaces scanned).`,
+            `Algunas labels de namespace podrían ser filtros (${total} namespaces revisados).`,
+          )
+        : l(
+            `Namespaces carry no labels that look like a filter (${total} scanned). Optional: nothing stops working.`,
+            `Los namespaces no tienen labels que parezcan un filtro (${total} revisados). Es opcional: nada deja de funcionar.`,
+          ),
+    items,
+  };
+};
+
+/**
+ * Cost allocation de Dynatrace: `dt.cost.costcenter` y `dt.cost.product` en
+ * los logs. Sin centros de costo la app funciona igual, así que nunca falla:
+ * informa lo que hay. Avisa además cuando `dt.cost.product` solo repite el
+ * namespace, para que nadie crea que ya tiene asignación de costos.
+ */
+const evaluateCostAllocation = (records: Records, lang: Lang): CheckResult => {
+  const l = pick(lang);
+  const r = records[0] ?? {};
+  const costCenters = Number(r.costcenters ?? 0);
+  const products = Number(r.products ?? 0);
+  const pairs = Number(r.pairs ?? 0);
+  const sameAsNamespace = Number(r.sameAsNamespace ?? 0);
+  const sample = ((r.sample as unknown[] | undefined) ?? []).filter(
+    (v): v is string => typeof v === "string" && v !== "",
+  );
+  const items: string[] = [];
+  if (products > 0 && pairs > 0 && sameAsNamespace === pairs) {
+    items.push(
+      l(
+        `dt.cost.product is set, but it always equals the namespace name (${pairs} of ${pairs}), so it adds nothing the Namespace filter and chart axis don't already show.`,
+        `dt.cost.product está, pero siempre es igual al nombre del namespace (${pairs} de ${pairs}), así que no suma nada que el filtro y el eje Namespace no muestren ya.`,
+      ),
+    );
+  }
+  if (costCenters > 0) {
+    const values = sample.length ? ` (${sample.join(", ")})` : "";
+    items.push(
+      l(
+        `Dynatrace copies the cost center from a label or annotation. To filter and group by it here, add that key to EXTRA_FILTERS in ui/app/config/site.ts (scope: "namespace" if it is on the namespace). See "Cost center" in docs/SETUP.md.`,
+        `Dynatrace copia el centro de costo desde una label o annotation. Para filtrar y agrupar por él aquí, agrega esa clave a EXTRA_FILTERS en ui/app/config/site.ts (scope: "namespace" si está en el namespace). Ver "Cost center" en docs/SETUP.md.`,
+      ),
+    );
+    return {
+      status: "ok",
+      detail: l(
+        `${costCenters} cost center(s) found in logs${values}.`,
+        `${costCenters} centro(s) de costo encontrados en los logs${values}.`,
+      ),
+      items,
+    };
+  }
+  return {
+    status: "info",
+    detail: l(
+      "No cost centers (dt.cost.costcenter). Optional: everything works without them; once your organization defines them, they become a filter and a chart axis.",
+      "No hay centros de costo (dt.cost.costcenter). Es opcional: todo funciona sin ellos; cuando tu organización los defina, pasan a ser un filtro y un eje de las gráficas.",
+    ),
+    items,
+  };
+};
 
 export const CHECKS: SetupCheck[] = [
   // Kubernetes
@@ -609,6 +766,24 @@ ${ownership.enrich("k8s.workload.name")}
   },
   {
     kind: "query",
+    id: "namespace-labels",
+    group: "ownership",
+    title: { en: "Namespace labels", es: "Labels de los namespaces" },
+    affects: {
+      en: 'Optional filters and chart axes with scope: "namespace"',
+      es: 'Filtros opcionales y ejes de las gráficas con scope: "namespace"',
+    },
+    fix: {
+      en: 'Optional. Label your namespaces (for example with a cost center) and add the key to EXTRA_FILTERS with scope: "namespace" in ui/app/config/site.ts.',
+      es: 'Opcional. Etiqueta tus namespaces (por ejemplo con un centro de costo) y agrega la clave a EXTRA_FILTERS con scope: "namespace" en ui/app/config/site.ts.',
+    },
+    query:
+      "smartscapeNodes K8S_NAMESPACE | fields lbl = `tags:k8s.labels`, ann = `tags:k8s.annotations` | limit 10000",
+    maxRecords: 10000,
+    evaluate: evaluateNamespaceLabels,
+  },
+  {
+    kind: "query",
     id: "cost-allocation",
     group: "ownership",
     title: {
@@ -616,26 +791,19 @@ ${ownership.enrich("k8s.workload.name")}
       es: "Cost allocation de Dynatrace (centros de costo)",
     },
     affects: {
-      en: "Cost center showback (coming)",
-      es: "Showback por centro de costo (próximamente)",
+      en: "Cost center filter and chart axis (optional)",
+      es: "Filtro y eje de gráficas por centro de costo (opcional)",
     },
     fix: {
-      en: "Optional. Configure Dynatrace cost allocation so Kubernetes data carries dt.cost.costcenter and dt.cost.product.",
-      es: "Opcional. Configura el cost allocation de Dynatrace para que los datos de Kubernetes traigan dt.cost.costcenter y dt.cost.product.",
+      en: 'Optional. Declare the cost center as a label on your namespaces or workloads (Dynatrace copies it to dt.cost.costcenter), then add that key to EXTRA_FILTERS. See "Cost center" in docs/SETUP.md.',
+      es: 'Opcional. Declara el centro de costo como label en tus namespaces o workloads (Dynatrace lo copia a dt.cost.costcenter) y agrega esa clave a EXTRA_FILTERS. Ver "Cost center" en docs/SETUP.md.',
     },
-    query:
-      "timeseries r = sum(dt.kubernetes.container.requests_cpu), by:{dt.cost.costcenter}, from: now()-2h | filter isNotNull(dt.cost.costcenter) | summarize n = count()",
-    evaluate: presence(
-      (n) => ({
-        en: `${n} cost center(s) found on Kubernetes metrics.`,
-        es: `${n} centro(s) de costo encontrados en las métricas de Kubernetes.`,
-      }),
-      {
-        en: "Not configured. Optional: it enables showback by cost center.",
-        es: "No está configurado. Es opcional: habilita el showback por centro de costo.",
-      },
-      "info",
-    ),
+    // En los logs y no en las métricas: en las métricas de Kubernetes no viene.
+    query: `fetch logs, from: now()-1h
+| filter isNotNull(dt.cost.costcenter) or isNotNull(dt.cost.product)
+| summarize n = count(), by:{dt.cost.costcenter, dt.cost.product, k8s.namespace.name}
+| summarize costcenters = countDistinct(dt.cost.costcenter), products = countDistinct(dt.cost.product), pairs = countIf(isNotNull(dt.cost.product)), sameAsNamespace = countIf(dt.cost.product == k8s.namespace.name), sample = collectDistinct(dt.cost.costcenter, maxLength: 5)`,
+    evaluate: evaluateCostAllocation,
   },
 
   // Instalación

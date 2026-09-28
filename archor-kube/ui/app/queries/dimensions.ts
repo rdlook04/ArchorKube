@@ -1,7 +1,7 @@
 import { EXTRA_FILTERS, filterLabel } from "../config/extraFilters";
 import type { Lang } from "../i18n";
 import { noneLabel } from "./lang";
-import { escapeDql, labelValue, workloadLabelsLookup } from "./tierJoin";
+import { escapeDql, labelSource } from "./tierJoin";
 import type { QueryParams } from "./types";
 
 /**
@@ -61,10 +61,11 @@ export const categoryClause = (
   const filter = labelFilter(dimension);
   if (filter) {
     const none = escapeDql(noneLabel(filterLabel(filter, params?.lang ?? "en").toLowerCase(), params));
+    const { lookup, value, cleanup } = labelSource(filter, sourceField, "xd");
     return `
-${workloadLabelsLookup(sourceField, "xd_ann", "xd_lbl")}
-| fieldsAdd category = coalesce(${labelValue(filter.key, "xd_ann", "xd_lbl")}, "${none}")
-| fieldsRemove xd_lbl, xd_ann`;
+${lookup}
+| fieldsAdd category = coalesce(${value}, "${none}")
+${cleanup}`;
   }
   const field = FIELDS[dimension as keyof typeof FIELDS] ?? "tier";
   return `

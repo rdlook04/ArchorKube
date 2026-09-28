@@ -1,6 +1,6 @@
 import type { QueryParams } from "./types";
 import { ownership } from "../ownership";
-import { EXTRA_FILTERS } from "../config/extraFilters";
+import { EXTRA_FILTERS, type ExtraFilter, isNamespaceScoped } from "../config/extraFilters";
 import { excludedNamespacesClause } from "./namespaces";
 
 /**
@@ -38,21 +38,62 @@ export const workloadLabelsLookup = (sourceField: string, ann: string, lbl: stri
   ], sourceField:${sourceField}, lookupField:${ann}_wl, fields:{${lbl}, ${ann}}`;
 
 /**
- * Filtros opcionales por label: solo se unen las labels del workload cuando
- * hay al menos uno elegido, así no cuestan nada mientras nadie los usa. La
- * fuente es la misma que la del proveedor de labels (cloud_application).
+ * Une las labels y annotations del namespace de cada fila. La clave es
+ * clúster + nombre: el mismo namespace puede existir en varios clústeres con
+ * labels distintas.
+ */
+const namespaceLabelsLookup = (prefix: string): string =>
+  `| fieldsAdd ${prefix}_key = concat(k8s.cluster.name, "/", k8s.namespace.name)
+| lookup [
+    smartscapeNodes K8S_NAMESPACE
+    | fields ${prefix}_key = concat(k8s.cluster.name, "/", k8s.namespace.name), ${prefix}_lbl = \`tags:k8s.labels\`, ${prefix}_ann = \`tags:k8s.annotations\`
+  ], sourceField:${prefix}_key, lookupField:${prefix}_key, fields:{${prefix}_lbl, ${prefix}_ann}`;
+
+/**
+ * Cómo leer un filtro opcional en DQL: la unión que trae sus labels (del
+ * workload o de su namespace), la expresión con su valor y la limpieza de los
+ * campos auxiliares. `prefix` evita choques cuando se unen varias veces.
+ */
+export const labelSource = (
+  filter: ExtraFilter,
+  sourceField: string,
+  prefix: string,
+): { lookup: string; value: string; cleanup: string } =>
+  isNamespaceScoped(filter)
+    ? {
+        lookup: namespaceLabelsLookup(prefix),
+        value: labelValue(filter.key, `${prefix}_ann`, `${prefix}_lbl`),
+        cleanup: `| fieldsRemove ${prefix}_key, ${prefix}_lbl, ${prefix}_ann`,
+      }
+    : {
+        lookup: workloadLabelsLookup(sourceField, `${prefix}_ann`, `${prefix}_lbl`),
+        value: labelValue(filter.key, `${prefix}_ann`, `${prefix}_lbl`),
+        cleanup: `| fieldsRemove ${prefix}_lbl, ${prefix}_ann`,
+      };
+
+/**
+ * Filtros opcionales por label: las labels solo se unen cuando hay al menos
+ * un filtro elegido, así no cuestan nada mientras nadie los usa. Una unión
+ * por fuente (workload, namespace), no una por filtro.
  */
 const extraFilterClauses = (params: QueryParams, sourceField: string): string[] => {
   const chosen = EXTRA_FILTERS.filter((f) => params.extra?.[f.id]);
-  if (chosen.length === 0) return [];
-  return [
-    workloadLabelsLookup(sourceField, "xf_ann", "xf_lbl"),
-    ...chosen.map(
-      (f) =>
-        `| filter ${labelValue(f.key, "xf_ann", "xf_lbl")} == "${escapeDql(params.extra?.[f.id] ?? "")}"`,
-    ),
-    "| fieldsRemove xf_lbl, xf_ann",
+  const groups = [
+    { prefix: "xf", filters: chosen.filter((f) => !isNamespaceScoped(f)) },
+    { prefix: "xn", filters: chosen.filter(isNamespaceScoped) },
   ];
+  return groups.flatMap(({ prefix, filters }) => {
+    if (filters.length === 0) return [];
+    const { lookup, cleanup } = labelSource(filters[0], sourceField, prefix);
+    return [
+      lookup,
+      ...filters.map(
+        (f) =>
+          `| filter ${labelSource(f, sourceField, prefix).value} == "${escapeDql(params.extra?.[f.id] ?? "")}"`,
+      ),
+      cleanup,
+    ];
+  });
 };
 
 /**
@@ -91,11 +132,19 @@ ${excludedNamespacesClause()}
 | limit 10000`;
 
 /** Valores de una label opcional; sin filas = la clave no existe y el filtro se esconde. */
-export const extraFilterOptionsQuery = (key: string): string => `fetch dt.entity.cloud_application
-| fields value = ${labelValue(key, "kubernetesAnnotations", "cloudApplicationLabels")}
+export const extraFilterOptionsQuery = (filter: ExtraFilter): string =>
+  isNamespaceScoped(filter)
+    ? `smartscapeNodes K8S_NAMESPACE
+| fields value = ${labelValue(filter.key, "`tags:k8s.annotations`", "`tags:k8s.labels`")}
 | filter isNotNull(value) and value != ""
-| summarize workloads = count(), by:{value}
-| sort workloads desc
+| summarize n = count(), by:{value}
+| sort n desc
+| limit 500`
+    : `fetch dt.entity.cloud_application
+| fields value = ${labelValue(filter.key, "kubernetesAnnotations", "cloudApplicationLabels")}
+| filter isNotNull(value) and value != ""
+| summarize n = count(), by:{value}
+| sort n desc
 | limit 500`;
 
 /** Opciones del selector de clúster (entidades K8s del environment). */

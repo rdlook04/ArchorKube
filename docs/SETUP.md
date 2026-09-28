@@ -105,12 +105,24 @@ smartscapeNodes K8S_NODE
 | summarize n = count(), by:{t}
 ```
 
-**Cost allocation (optional).** If Dynatrace cost allocation is configured, Kubernetes data carries cost centers:
+**Namespace labels (optional).** Some organizations label namespaces instead of workloads (cost center, environment, owning team):
 
 ```
-timeseries r = sum(dt.kubernetes.container.requests_cpu), by:{dt.cost.costcenter}, from: now()-2h
-| filter isNotNull(dt.cost.costcenter)
+smartscapeNodes K8S_NAMESPACE
+| fields lbl = `tags:k8s.labels`, ann = `tags:k8s.annotations`
 ```
+
+Ignore the keys Kubernetes, the cloud or an operator put on every namespace (`kubernetes.io/metadata.name`, `*.dynatrace.com/*`). Any other key with a few distinct values can be an optional filter with `scope: "namespace"`.
+
+**Cost allocation (optional).** Dynatrace cost allocation shows up as `dt.cost.costcenter` and `dt.cost.product`. Kubernetes metrics don't carry them; logs do:
+
+```
+fetch logs, from: now()-1h
+| filter isNotNull(dt.cost.costcenter) or isNotNull(dt.cost.product)
+| summarize n = count(), by:{dt.cost.costcenter, dt.cost.product, k8s.namespace.name}
+```
+
+If `dt.cost.product` always equals `k8s.namespace.name`, it adds nothing the Namespace filter doesn't already give. See [Cost center](#cost-center) for how to use real cost centers.
 
 ## 4. Configure
 
@@ -136,7 +148,7 @@ Setup rates ownership coverage by the share of workloads with a squad: 80% or mo
 | Setting | What to put | From |
 |---|---|---|
 | `OWNERSHIP_KEYS` | The label keys for tier, squad, tribe/domain and app code | Discovery query 1 |
-| `EXTRA_FILTERS` | Other label keys people want to filter by (business criticality, cost center, product, environment) | Discovery query 1: keys that aren't owners |
+| `EXTRA_FILTERS` | Other label keys people want to filter and group charts by (business criticality, cost center, product, environment), on the workload or on its namespace | Discovery query 1 (keys that aren't owners) and the namespace labels query |
 | `EXCLUDED_NAMESPACES_EXACT` / `_CONTAINING` | System and platform namespaces that aren't workloads of any team. Prefer exact names: a substring like `system` also drops a team namespace called `payment-system` | Ask the person; Setup flags platform namespaces left in and team namespaces dropped by a substring |
 | `INSTANCE_HOURLY_USD` | Hourly price for each instance type found | Discovery query 2 + the person's pricing (list price or contract) |
 | `PRICING_SOURCE` | Where the prices came from, in words (it shows next to the numbers). Without prices, leave the default: it says no source is configured | The person |
@@ -146,11 +158,22 @@ Setup rates ownership coverage by the share of workloads with a squad: 80% or mo
 ```ts
 export const EXTRA_FILTERS: ExtraFilter[] = [
   { id: "criticality", label: "Business criticality", key: "business-criticality" },
-  { id: "costcenter", label: "Cost center", key: "cost-center" },
+  // A label on the namespace, not on the workload:
+  { id: "costcenter", label: { en: "Cost center", es: "Centro de costo" }, key: "cost-center", scope: "namespace" },
 ];
 ```
 
-Use the key exactly as your workloads carry it (the example keys are only examples). The `id` must be letters and numbers only: `costcenter`, not `cost-center`. A filter with an invalid `id` is ignored and a filter whose key doesn't exist is hidden; both fail quietly in the UI, and Setup tells you.
+Use the key exactly as your workloads or namespaces carry it (the example keys are only examples). `scope` is `"workload"` when left out. The `id` must be letters and numbers only: `costcenter`, not `cost-center`. A filter with an invalid `id` is ignored and a filter whose key doesn't exist is hidden; both fail quietly in the UI, and Setup tells you (*Ownership label keys and optional filters* for workload labels, *Namespace labels* for namespace ones).
+
+Every optional filter is also a chart axis: the *Group by* selector of each module's chart lists it next to tier, squad, tribe, cluster and namespace.
+
+### Cost center
+
+ArchorKube doesn't invent cost centers: it reads them from a label, like any optional filter. It's optional; nothing stops working without one.
+
+1. **Find out whether one exists.** Setup's *Dynatrace cost allocation (cost centers)* check looks for `dt.cost.costcenter` in logs and tells you if `dt.cost.product` is just the namespace name. The namespace labels query above shows whether namespaces carry a cost-center key.
+2. **If there is none**, it's a decision for the organization, not for the installer: someone has to define the cost centers and put them on the namespaces (or workloads) as a label or annotation. Namespaces are the usual place, because a team's workloads share them. Dynatrace can then copy that label into `dt.cost.costcenter` for its own cost allocation (Kubernetes metadata enrichment, in the Dynatrace settings). Don't make up values to fill the gap.
+3. **Once the label exists**, add it to `EXTRA_FILTERS` with the key it has, and `scope: "namespace"` if it's on the namespace. It becomes a filter on every module and an axis on every chart. Re-run Setup to confirm the coverage.
 
 ## 5. Verify
 
@@ -194,7 +217,7 @@ The tenant asks to consent these scopes. What each one is for:
 | `storage:logs:read` | Errors module |
 | `storage:events:read` | Events used by Preventive and Control plane |
 | `storage:buckets:read`, `storage:files:read` | Lookup tables (ownership catalogs) |
-| `state:user-app-states:read`, `:write` | Each user's AI data mode in Settings |
+| `state:user-app-states:read`, `:write` | Each user's language and AI data mode in Settings |
 | `storage:events:write` | One business event per finding sent to an AI outside Dynatrace (never the content) |
 
 After deploying, open Setup again in the tenant: *Per-user settings can be saved* confirms the state scopes were consented.
@@ -203,4 +226,4 @@ After deploying, open Setup again in the tenant: *Per-user settings can be saved
 
 ## Optional: send findings to a local Ollama
 
-Dynatrace apps can't connect to your machine, so ArchorKube opens a small local page that talks to Ollama. See [`tools/ollama-bridge`](../tools/ollama-bridge/README.md). Nothing to configure in the tenant.
+Dynatrace apps can't connect to your machine, so ArchorKube would open a small local page that talks to Ollama. See [`tools/ollama-bridge`](../tools/ollama-bridge/README.md). It's turned off by default (`OLLAMA_BRIDGE_ENABLED` in `ui/app/ai/ollamaBridge.ts`) because every user would have to run that page on their machine; *Copy for another AI* works without it.

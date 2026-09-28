@@ -7,9 +7,18 @@ export interface ExtraFilter {
   id: string;
   /** Texto del selector: uno solo, o `{ en, es }` para verlo en cada idioma. */
   label: string | Localized;
-  /** Clave exacta de la label o annotation del workload. */
+  /** Clave exacta de la label o annotation. */
   key: string;
+  /**
+   * Dónde está la label: en el workload (por defecto) o en su namespace. Los
+   * centros de costo suelen declararse en el namespace, que es lo que
+   * recomienda Dynatrace para su cost allocation.
+   */
+  scope?: "workload" | "namespace";
 }
+
+/** Si la label se lee del namespace del workload. */
+export const isNamespaceScoped = (filter: ExtraFilter): boolean => filter.scope === "namespace";
 
 const VALID_ID = /^[a-z0-9]+$/i;
 
