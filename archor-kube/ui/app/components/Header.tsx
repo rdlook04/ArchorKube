@@ -62,7 +62,12 @@ export const Header = ({ onHelp }: HeaderProps) => {
           silencio cualquier envoltorio.
         */}
         {NAV.map((to) => (
-          <AppHeader.NavigationItem key={to} as={Link} to={to}>
+          <AppHeader.NavigationItem
+            key={to}
+            as={Link}
+            to={to}
+            isSelected={pathname === to || pathname.startsWith(`${to}/`)}
+          >
             <Tooltip text={t.nav[to].tooltip} placement="bottom">
               <span>{t.nav[to].label}</span>
             </Tooltip>

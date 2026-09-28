@@ -11,6 +11,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 import { type BreakdownDimension, idleBreakdown } from "../queries/idle";
 import type { TierFilterValue } from "./TierFilters";
 import { useT } from "../i18n";
+import { codeLabel, labelPalette } from "../i18n/codes";
 import { DimensionSelect, keepTopBars, useDimensionName } from "./DimensionSelect";
 
 /** Colores semánticos por veredicto (mismo criterio que los highlights de la tabla). */
@@ -48,7 +49,7 @@ export const IdleVerdictChart = ({ filters }: { filters: TierFilterValue }) => {
     const byCategory = new Map<string, Record<string, number>>();
     for (const r of records) {
       const category = r.category ?? c.noData;
-      const veredicto = r.veredicto ?? "?";
+      const veredicto = codeLabel(r.veredicto ?? "?", lang);
       const workloads = Number(r.workloads ?? 0);
       const bucket = byCategory.get(category) ?? {};
       bucket[veredicto] = (bucket[veredicto] ?? 0) + workloads;
@@ -58,7 +59,7 @@ export const IdleVerdictChart = ({ filters }: { filters: TierFilterValue }) => {
       [...byCategory.entries()].map(([category, value]) => ({ category, value })),
       c.others,
     );
-  }, [data?.records, c.noData, c.others]);
+  }, [data?.records, c.noData, c.others, lang]);
 
   return (
     <Flex flexDirection="column" gap={8}>
@@ -73,7 +74,7 @@ export const IdleVerdictChart = ({ filters }: { filters: TierFilterValue }) => {
           data={chartData}
           layout="horizontal"
           groupMode="stacked"
-          colorPalette={VERDICT_COLORS}
+          colorPalette={labelPalette(VERDICT_COLORS, lang)}
           height={340}
         >
           <CategoricalBarChart.CategoryAxis label={dimensionName(dimension)} />

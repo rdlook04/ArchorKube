@@ -11,6 +11,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 import { type BreakdownDimension, elasticityBreakdown } from "../queries/elasticity";
 import type { TierFilterValue } from "./TierFilters";
 import { useT } from "../i18n";
+import { codeLabel, labelPalette } from "../i18n/codes";
 import { DimensionSelect, keepTopBars, useDimensionName } from "./DimensionSelect";
 
 /** Colores semánticos por elasticidad (rojo=bloqueado, ámbar=sin margen, verde=OK). */
@@ -42,7 +43,7 @@ export const ElasticityChart = ({ filters }: { filters: TierFilterValue }) => {
     const byCategory = new Map<string, Record<string, number>>();
     for (const r of records) {
       const category = r.category ?? c.noData;
-      const elasticidad = r.elasticidad ?? "?";
+      const elasticidad = codeLabel(r.elasticidad ?? "?", lang);
       const hpas = Number(r.hpas ?? 0);
       const bucket = byCategory.get(category) ?? {};
       bucket[elasticidad] = (bucket[elasticidad] ?? 0) + hpas;
@@ -52,7 +53,7 @@ export const ElasticityChart = ({ filters }: { filters: TierFilterValue }) => {
       [...byCategory.entries()].map(([category, value]) => ({ category, value })),
       c.others,
     );
-  }, [data?.records, c.noData, c.others]);
+  }, [data?.records, c.noData, c.others, lang]);
 
   return (
     <Flex flexDirection="column" gap={8}>
@@ -67,7 +68,7 @@ export const ElasticityChart = ({ filters }: { filters: TierFilterValue }) => {
           data={chartData}
           layout="horizontal"
           groupMode="stacked"
-          colorPalette={ELASTICITY_COLORS}
+          colorPalette={labelPalette(ELASTICITY_COLORS, lang)}
           height={340}
         >
           <CategoricalBarChart.CategoryAxis label={dimensionName(dimension)} />

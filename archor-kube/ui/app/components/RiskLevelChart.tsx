@@ -11,6 +11,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 import { type BreakdownDimension, riskBreakdown } from "../queries/risk";
 import type { TierFilterValue } from "./TierFilters";
 import { useT } from "../i18n";
+import { codeLabel, labelPalette } from "../i18n/codes";
 import { DimensionSelect, keepTopBars, useDimensionName } from "./DimensionSelect";
 
 /** Colores semánticos por nivel de riesgo. */
@@ -43,7 +44,7 @@ export const RiskLevelChart = ({ filters }: { filters: TierFilterValue }) => {
     const byCategory = new Map<string, Record<string, number>>();
     for (const r of records) {
       const category = r.category ?? c.noData;
-      const nivel = r.nivel ?? "?";
+      const nivel = codeLabel(r.nivel ?? "?", lang);
       const workloads = Number(r.workloads ?? 0);
       const bucket = byCategory.get(category) ?? {};
       bucket[nivel] = (bucket[nivel] ?? 0) + workloads;
@@ -53,7 +54,7 @@ export const RiskLevelChart = ({ filters }: { filters: TierFilterValue }) => {
       [...byCategory.entries()].map(([category, value]) => ({ category, value })),
       c.others,
     );
-  }, [data?.records, c.noData, c.others]);
+  }, [data?.records, c.noData, c.others, lang]);
 
   return (
     <Flex flexDirection="column" gap={8}>
@@ -68,7 +69,7 @@ export const RiskLevelChart = ({ filters }: { filters: TierFilterValue }) => {
           data={chartData}
           layout="horizontal"
           groupMode="stacked"
-          colorPalette={LEVEL_COLORS}
+          colorPalette={labelPalette(LEVEL_COLORS, lang)}
           height={340}
         >
           <CategoricalBarChart.CategoryAxis label={dimensionName(dimension)} />

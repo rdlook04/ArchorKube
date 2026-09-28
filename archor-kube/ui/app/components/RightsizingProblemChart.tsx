@@ -11,6 +11,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 import { type BreakdownDimension, rightsizingBreakdown } from "../queries/rightsizing";
 import type { TierFilterValue } from "./TierFilters";
 import { useT } from "../i18n";
+import { codeLabel, labelPalette } from "../i18n/codes";
 import { DimensionSelect, keepTopBars, useDimensionName } from "./DimensionSelect";
 
 /** Colores semánticos por problema (rojo=riesgo, ámbar=subdimensionado, resto=desperdicio). */
@@ -45,7 +46,7 @@ export const RightsizingProblemChart = ({ filters }: { filters: TierFilterValue 
     const byCategory = new Map<string, Record<string, number>>();
     for (const r of records) {
       const category = r.category ?? c.noData;
-      const problema = r.problema ?? "?";
+      const problema = codeLabel(r.problema ?? "?", lang);
       const pods = Number(r.pods ?? 0);
       const bucket = byCategory.get(category) ?? {};
       bucket[problema] = (bucket[problema] ?? 0) + pods;
@@ -55,7 +56,7 @@ export const RightsizingProblemChart = ({ filters }: { filters: TierFilterValue 
       [...byCategory.entries()].map(([category, value]) => ({ category, value })),
       c.others,
     );
-  }, [data?.records, c.noData, c.others]);
+  }, [data?.records, c.noData, c.others, lang]);
 
   return (
     <Flex flexDirection="column" gap={8}>
@@ -70,7 +71,7 @@ export const RightsizingProblemChart = ({ filters }: { filters: TierFilterValue 
           data={chartData}
           layout="horizontal"
           groupMode="stacked"
-          colorPalette={PROBLEM_COLORS}
+          colorPalette={labelPalette(PROBLEM_COLORS, lang)}
           height={340}
         >
           <CategoricalBarChart.CategoryAxis label={dimensionName(dimension)} />

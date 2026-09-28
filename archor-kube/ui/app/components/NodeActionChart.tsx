@@ -11,6 +11,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 import { nodeActionBreakdown } from "../queries/density";
 import type { TierFilterValue } from "./TierFilters";
 import { useT } from "../i18n";
+import { codeLabel, labelPalette } from "../i18n/codes";
 
 /** Colores semánticos por acción (verde=eliminar/ahorro, ámbar=consolidar, gris=monitorear). */
 const ACTION_COLORS: Record<string, string> = {
@@ -40,14 +41,14 @@ export const NodeActionChart = ({ filters }: { filters: TierFilterValue }) => {
     const byCategory = new Map<string, Record<string, number>>();
     for (const r of records) {
       const category = r.category ?? c.noCluster;
-      const accion = r.accion ?? "?";
+      const accion = codeLabel(r.accion ?? "?", lang);
       const nodos = Number(r.nodos ?? 0);
       const bucket = byCategory.get(category) ?? {};
       bucket[accion] = (bucket[accion] ?? 0) + nodos;
       byCategory.set(category, bucket);
     }
     return [...byCategory.entries()].map(([category, value]) => ({ category, value }));
-  }, [data?.records, c.noCluster]);
+  }, [data?.records, c.noCluster, lang]);
 
   return (
     <Flex flexDirection="column" gap={8}>
@@ -59,7 +60,7 @@ export const NodeActionChart = ({ filters }: { filters: TierFilterValue }) => {
           data={chartData}
           layout="horizontal"
           groupMode="stacked"
-          colorPalette={ACTION_COLORS}
+          colorPalette={labelPalette(ACTION_COLORS, lang)}
           height={340}
         >
           <CategoricalBarChart.CategoryAxis label={c.axis.cluster} />

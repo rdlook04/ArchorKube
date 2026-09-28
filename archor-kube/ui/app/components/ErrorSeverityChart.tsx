@@ -11,6 +11,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 import { type BreakdownDimension, errorSeverityBreakdown } from "../queries/errors";
 import type { TierFilterValue } from "./TierFilters";
 import { useT } from "../i18n";
+import { codeLabel, labelPalette } from "../i18n/codes";
 import { DimensionSelect, keepTopBars, useDimensionName } from "./DimensionSelect";
 
 /** Colores semánticos por severidad (rojo=con críticos, ámbar=solo errores). */
@@ -41,7 +42,7 @@ export const ErrorSeverityChart = ({ filters }: { filters: TierFilterValue }) =>
     const byCategory = new Map<string, Record<string, number>>();
     for (const r of records) {
       const category = r.category ?? c.noData;
-      const severidad = r.severidad ?? "?";
+      const severidad = codeLabel(r.severidad ?? "?", lang);
       const contenedores = Number(r.contenedores ?? 0);
       const bucket = byCategory.get(category) ?? {};
       bucket[severidad] = (bucket[severidad] ?? 0) + contenedores;
@@ -51,7 +52,7 @@ export const ErrorSeverityChart = ({ filters }: { filters: TierFilterValue }) =>
       [...byCategory.entries()].map(([category, value]) => ({ category, value })),
       c.others,
     );
-  }, [data?.records, c.noData, c.others]);
+  }, [data?.records, c.noData, c.others, lang]);
 
   return (
     <Flex flexDirection="column" gap={8}>
@@ -66,7 +67,7 @@ export const ErrorSeverityChart = ({ filters }: { filters: TierFilterValue }) =>
           data={chartData}
           layout="horizontal"
           groupMode="stacked"
-          colorPalette={SEVERITY_COLORS}
+          colorPalette={labelPalette(SEVERITY_COLORS, lang)}
           height={340}
         >
           <CategoricalBarChart.CategoryAxis label={dimensionName(dimension)} />

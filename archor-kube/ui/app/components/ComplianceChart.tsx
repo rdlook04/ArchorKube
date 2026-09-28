@@ -11,6 +11,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 import { type BreakdownDimension, complianceBreakdown } from "../queries/compliance";
 import type { TierFilterValue } from "./TierFilters";
 import { useT } from "../i18n";
+import { codeLabel, labelPalette } from "../i18n/codes";
 import { DimensionSelect, keepTopBars, useDimensionName } from "./DimensionSelect";
 
 /** Colores semánticos por criticidad (mismo criterio que los highlights de la tabla). */
@@ -44,7 +45,7 @@ export const ComplianceChart = ({ filters }: { filters: TierFilterValue }) => {
     const byCategory = new Map<string, Record<string, number>>();
     for (const r of records) {
       const category = r.category ?? c.noData;
-      const criticidad = r.criticidad ?? "?";
+      const criticidad = codeLabel(r.criticidad ?? "?", lang);
       const workloads = Number(r.workloads ?? 0);
       const bucket = byCategory.get(category) ?? {};
       bucket[criticidad] = (bucket[criticidad] ?? 0) + workloads;
@@ -54,7 +55,7 @@ export const ComplianceChart = ({ filters }: { filters: TierFilterValue }) => {
       [...byCategory.entries()].map(([category, value]) => ({ category, value })),
       c.others,
     );
-  }, [data?.records, c.noData, c.others]);
+  }, [data?.records, c.noData, c.others, lang]);
 
   return (
     <Flex flexDirection="column" gap={8}>
@@ -69,7 +70,7 @@ export const ComplianceChart = ({ filters }: { filters: TierFilterValue }) => {
           data={chartData}
           layout="horizontal"
           groupMode="stacked"
-          colorPalette={CRITICIDAD_COLORS}
+          colorPalette={labelPalette(CRITICIDAD_COLORS, lang)}
           height={340}
         >
           <CategoricalBarChart.CategoryAxis label={dimensionName(dimension)} />

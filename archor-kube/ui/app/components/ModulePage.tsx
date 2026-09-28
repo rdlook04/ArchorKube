@@ -14,6 +14,7 @@ import type { QueryDef } from "../queries";
 import { AnalysisWindowBadge } from "./AnalysisWindowBadge";
 import { ModuleAbout, type SimpleExplanation } from "./ModuleAbout";
 import { useT } from "../i18n";
+import { codeLabel, labelRow } from "../i18n/codes";
 import { TierFilters, type TierFilterValue } from "./TierFilters";
 
 /** Accessor para campos DQL con punto en el nombre (evita rutas anidadas). */
@@ -216,14 +217,24 @@ export const ModulePage = ({
   // En inglés, la capa `en` reemplaza los textos en español de la página.
   const english = lang === "en" ? en : undefined;
   const localizeColumns = (columns: Column[]) =>
-    english
-      ? columns.map((column) => {
-          const header = english.headers[column.id];
-          // Las columnas de la app siempre usan un header de texto; sin la
-          // conversión, la unión de tipos de columna no se estrecha con el spread.
-          return header ? ({ ...column, header } as typeof column) : column;
-        })
-      : columns;
+    columns.map((column) => {
+      const header = english?.headers[column.id];
+      // Los umbrales comparan contra la celda, que ya muestra el texto del código.
+      const thresholds =
+        "thresholds" in column && Array.isArray(column.thresholds)
+          ? column.thresholds.map((rule: Record<string, unknown>) =>
+              "value" in rule ? { ...rule, value: codeLabel(rule.value, lang) } : rule,
+            )
+          : undefined;
+      if (!header && !thresholds) return column;
+      // Las columnas de la app siempre usan un header de texto; sin la
+      // conversión, la unión de tipos de columna no se estrecha con el spread.
+      return {
+        ...column,
+        ...(header ? { header } : {}),
+        ...(thresholds ? { thresholds } : {}),
+      } as typeof column;
+    });
   const shownTitle = english?.title ?? title;
   const shownSimple = english?.simple ?? simple;
   const shownAbout = english?.about ?? about;
@@ -246,9 +257,21 @@ export const ModulePage = ({
     maxResultRecords: detailMaxRecords,
   });
 
-  const detailRecords = useMemo(
-    () => (detail.data?.records ?? []) as Record<string, unknown>[],
-    [detail.data?.records],
+  // Las tablas muestran los códigos de las consultas como texto legible
+  // (i18n/codes.ts). El menú de cada fila recibe la fila original: los prompts
+  // y "¿Por qué se marca?" leen los códigos.
+  const { detailRecords, rawRow } = useMemo(() => {
+    const raw = new WeakMap<Record<string, unknown>, Record<string, unknown>>();
+    const rows = ((detail.data?.records ?? []) as Record<string, unknown>[]).map((record) => {
+      const shown = labelRow(record, lang);
+      raw.set(shown, record);
+      return shown;
+    });
+    return { detailRecords: rows, rawRow: raw };
+  }, [detail.data?.records, lang]);
+  const summaryRecords = useMemo(
+    () => ((summary.data?.records ?? []) as Record<string, unknown>[]).map((r) => labelRow(r, lang)),
+    [summary.data?.records, lang],
   );
 
   // Cada faceta compara el valor elegido contra la celda como texto: DQL
@@ -317,8 +340,8 @@ export const ModulePage = ({
         <Flex gap={16} alignItems="flex-start" flexWrap="wrap">
           <Flex flexDirection="column" style={{ flex: "1 1 480px", minWidth: 0 }}>
             <DataTable
-              data={summary.data.records}
-              columns={sizeColumns(localizeColumns(summaryColumns), summary.data.records)}
+              data={summaryRecords}
+              columns={sizeColumns(localizeColumns(summaryColumns), summaryRecords)}
               sortable
               resizable
             >
@@ -388,7 +411,10 @@ export const ModulePage = ({
             </DataTable.Toolbar>
             {rowActions && (
               <DataTable.RowActions>
-                {(row) => rowActions(row as Record<string, unknown>)}
+                {(row) => {
+                  const shown = row as Record<string, unknown>;
+                  return rowActions(rawRow.get(shown) ?? shown);
+                }}
               </DataTable.RowActions>
             )}
             <DataTable.Pagination defaultPageSize={20} />

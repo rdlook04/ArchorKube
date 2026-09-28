@@ -11,6 +11,7 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 import { type BreakdownDimension, orphanBreakdown } from "../queries/orphans";
 import type { TierFilterValue } from "./TierFilters";
 import { useT } from "../i18n";
+import { codeLabel, labelPalette } from "../i18n/codes";
 import { DimensionSelect, keepTopBars, useDimensionName } from "./DimensionSelect";
 
 /** Colores semánticos por motivo (ámbar=escalado a 0, rojo=sin dueño). */
@@ -42,7 +43,7 @@ export const OrphanReasonChart = ({ filters }: { filters: TierFilterValue }) => 
     const byCategory = new Map<string, Record<string, number>>();
     for (const r of records) {
       const category = r.category ?? c.noData;
-      const motivo = r.motivo ?? "?";
+      const motivo = codeLabel(r.motivo ?? "?", lang);
       const workloads = Number(r.workloads ?? 0);
       const bucket = byCategory.get(category) ?? {};
       bucket[motivo] = (bucket[motivo] ?? 0) + workloads;
@@ -52,7 +53,7 @@ export const OrphanReasonChart = ({ filters }: { filters: TierFilterValue }) => 
       [...byCategory.entries()].map(([category, value]) => ({ category, value })),
       c.others,
     );
-  }, [data?.records, c.noData, c.others]);
+  }, [data?.records, c.noData, c.others, lang]);
 
   return (
     <Flex flexDirection="column" gap={8}>
@@ -67,7 +68,7 @@ export const OrphanReasonChart = ({ filters }: { filters: TierFilterValue }) => 
           data={chartData}
           layout="horizontal"
           groupMode="stacked"
-          colorPalette={REASON_COLORS}
+          colorPalette={labelPalette(REASON_COLORS, lang)}
           height={340}
         >
           <CategoricalBarChart.CategoryAxis label={dimensionName(dimension)} />
