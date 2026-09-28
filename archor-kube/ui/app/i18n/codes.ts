@@ -102,3 +102,14 @@ export const labelPalette = (palette: Record<string, string>, lang: Lang): Recor
   Object.fromEntries(
     Object.entries(palette).map(([code, color]) => [codeLabel(code, lang), color]),
   );
+
+/**
+ * Pasa a texto los códigos que aparecen sueltos en un prompt: los datos de la
+ * fila y las definiciones ("OOM_KILL = …"). Los de menos de tres letras (SI,
+ * NO) no, porque en un texto libre pueden ser otra cosa; esos los cubre
+ * `labelRow` sobre la fila.
+ */
+export const labelCodesInText = (text: string, lang: Lang): string =>
+  text.replace(/\b[A-Z][A-Z0-9_]{2,}\b/g, (token) =>
+    Object.hasOwn(CODE_LABELS, token) ? CODE_LABELS[token][lang] : token,
+  );

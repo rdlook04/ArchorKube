@@ -8,6 +8,7 @@ import { DotMenuIcon } from "@dynatrace/strato-icons";
 import { OLLAMA_BRIDGE_ENABLED } from "../ai/ollamaBridge";
 import { useExternalSend } from "../ai/useExternalSend";
 import { useT } from "../i18n";
+import { labelCodesInText, labelRow } from "../i18n/codes";
 import type { Lang, Localized } from "../i18n";
 import { useOpenGuide } from "../practices/flagged";
 import { standardSection } from "../practices/prompt";
@@ -61,15 +62,18 @@ export const RowMenu = ({ row, module, prompt, assistPayload, practices, links }
   // Las prácticas se calculan sobre la fila original: la filtrada puede no traer
   // los campos del veredicto. El texto del estándar no lleva datos de la fila.
   const standard = standardSection(flagged ?? [], lang);
-  // El prompt sale en el idioma del usuario y le pide a la IA responder en ese idioma.
+  // El prompt sale en el idioma del usuario y le pide a la IA responder en ese
+  // idioma, con los códigos de las consultas pasados a texto como en la tabla.
   const localizedPrompt = useCallback(
-    (r: Row) => prompt(r, lang) + standard,
+    (r: Row) => labelCodesInText(prompt(labelRow(r, lang), lang), lang) + standard,
     [prompt, lang, standard],
   );
   const sendExternal = useExternalSend(localizedPrompt, module);
-  const assist = assistPayload(row, lang);
+  const assist = assistPayload(labelRow(row, lang), lang);
   const assistWithStandard =
-    typeof assist.prompt === "string" ? { ...assist, prompt: assist.prompt + standard } : assist;
+    typeof assist.prompt === "string"
+      ? { ...assist, prompt: labelCodesInText(assist.prompt, lang) + standard }
+      : assist;
 
   return (
     <Menu>
