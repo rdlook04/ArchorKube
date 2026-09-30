@@ -3,7 +3,12 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Borders from "@dynatrace/strato-design-tokens/borders";
 import Colors from "@dynatrace/strato-design-tokens/colors";
 import { Button } from "@dynatrace/strato-components/buttons";
-import { Accordion, CodeSnippet, ProgressCircle } from "@dynatrace/strato-components/content";
+import {
+  Accordion,
+  CodeSnippet,
+  ProgressBar,
+  ProgressCircle,
+} from "@dynatrace/strato-components/content";
 import { Flex } from "@dynatrace/strato-components/layouts";
 import { Heading, List, Paragraph, Text } from "@dynatrace/strato-components/typography";
 import {
@@ -19,8 +24,15 @@ import { useT } from "../i18n";
 import type { Lang } from "../i18n";
 import type { UiText } from "../i18n/ui";
 import { CHECKS, GROUP_LABELS } from "../setup/checks";
-import type { CheckGroup, CheckResult, CheckStatus, SetupCheck } from "../setup/checks";
+import type {
+  CheckGroup,
+  CheckMetric,
+  CheckResult,
+  CheckStatus,
+  SetupCheck,
+} from "../setup/checks";
 import { errorMessage, runQuery } from "../setup/runQuery";
+import { TemplatePanel } from "../templates/TemplatePanel";
 
 type Results = Record<string, CheckResult | "running">;
 
@@ -49,6 +61,33 @@ const STATUS_META: Record<CheckStatus, { color: string; icon: React.ReactNode }>
   info: { color: Colors.Icon.Neutral.Default, icon: <InformationIcon /> },
 };
 
+/** Mismos umbrales que la cobertura de dueños: 80 % o más bien, menos de 40 % mal. */
+const metricColor = (m: CheckMetric): "success" | "warning" | "critical" | "neutral" =>
+  m.pct >= 80 ? "success" : m.optional ? "neutral" : m.pct >= 40 ? "warning" : "critical";
+
+/** Una cobertura como barra: el color se lee antes que el número. */
+const MetricBar = ({ metric }: { metric: CheckMetric }) => (
+  <Flex flexDirection="column" gap={2} style={{ maxWidth: 520 }}>
+    <ProgressBar value={metric.pct} max={100} density="condensed" color={metricColor(metric)}>
+      <ProgressBar.Label>{metric.label}</ProgressBar.Label>
+      <ProgressBar.Value>{`${metric.pct}%`}</ProgressBar.Value>
+    </ProgressBar>
+    {metric.hint && (
+      <Text
+        textStyle="small"
+        style={{
+          color:
+            metric.pct === 0 && !metric.optional
+              ? Colors.Text.Critical.Default
+              : Colors.Text.Neutral.Subdued,
+        }}
+      >
+        {metric.hint}
+      </Text>
+    )}
+  </Flex>
+);
+
 const CheckRow = ({ check, result }: { check: SetupCheck; result?: CheckResult | "running" }) => {
   const { t, L } = useT();
   const done = result && result !== "running" ? result : null;
@@ -76,6 +115,13 @@ const CheckRow = ({ check, result }: { check: SetupCheck; result?: CheckResult |
             )}
           </Flex>
           {done && <Text>{done.detail}</Text>}
+          {done?.metrics && done.metrics.length > 0 && (
+            <Flex flexDirection="column" gap={12} style={{ margin: "8px 0" }}>
+              {done.metrics.map((m) => (
+                <MetricBar key={m.label} metric={m} />
+              ))}
+            </Flex>
+          )}
           {done?.items && done.items.length > 0 && (
             <List>
               {done.items.map((item) => (
@@ -88,6 +134,7 @@ const CheckRow = ({ check, result }: { check: SetupCheck; result?: CheckResult |
           <Text textStyle="small" style={{ color: Colors.Text.Neutral.Subdued }}>
             {t.setup.affects(L(check.affects))}
           </Text>
+          {done && check.template && <TemplatePanel id={check.template} />}
           {done && done.status !== "ok" && (
             <Accordion>
               <Accordion.Section id={`${check.id}-fix`}>

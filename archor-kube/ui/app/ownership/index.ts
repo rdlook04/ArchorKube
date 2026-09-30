@@ -12,4 +12,19 @@ export { namespaceProvider } from "./namespace";
 export { noneProvider } from "./none";
 export { chainProviders } from "./chain";
 
-export { ownership, availableProviders } from "./active";
+export { lookupProvider } from "./lookup";
+export { availableProviders } from "./active";
+
+import { ownership as configured } from "./active";
+import { chainProviders } from "./chain";
+import { lookupProvider } from "./lookup";
+
+/**
+ * La cadena de `active.ts`, con la tabla de dueños de Grail delante cuando
+ * existe. Así una tabla subida desde Setup funciona sin tocar código, también
+ * en instalaciones cuyo `active.ts` es anterior a la tabla.
+ */
+export const ownership =
+  lookupProvider.id === "none" || configured.id.split("+").includes("lookup")
+    ? configured
+    : chainProviders(lookupProvider, configured);

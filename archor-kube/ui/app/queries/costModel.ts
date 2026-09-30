@@ -1,5 +1,5 @@
 import { HOURS_PER_MONTH, USD_GB_MONTH, USD_VCPU_MONTH } from "../config/site";
-import { HOURLY_USD } from "../config/pricing";
+import { LIST_BASE, OWN_PRICES, PRICE_TABLE } from "../config/pricing";
 
 /**
  * Modelo de costos para estimar la pérdida mensual (FinOps).
@@ -13,25 +13,47 @@ import { HOURLY_USD } from "../config/pricing";
  */
 export { HOURS_PER_MONTH, USD_GB_MONTH, USD_VCPU_MONTH };
 
+/** Tabla de precios en línea, como `data`, unida por tipo de instancia. */
+const dataLookup = (prices: Record<string, number>, field: string): string => {
+  const rows = Object.entries(prices)
+    .map(([sku, price]) => `record(t = "${sku.replace(/["\\]/g, "")}", p = ${Number(price)})`)
+    .join(", ");
+  return `| lookup [data ${rows}], sourceField:instance_type, lookupField:t, fields:{${field} = p}`;
+};
+
 /**
  * Cláusula DQL que agrega `precio_hora` según `instance_type`. Los tipos sin
  * precio conocido quedan nulos, para que se vean como hueco y no se confundan
  * con gasto cero.
  *
- * La tabla viaja en la consulta como `data` y se une con `lookup`: con una
- * base de precios de lista son cientos de tipos, y un `if` anidado por tipo no
- * escala.
+ * Cada capa de precios (propios, tabla de Grail, lista de la nube) se une por
+ * separado y gana la primera que tenga precio. Las tablas viajan como `data` y
+ * se unen con `lookup`: con una base de lista son cientos de tipos, y un `if`
+ * anidado por tipo no escala.
  */
 export const instancePriceClause = (): string => {
-  const entries = Object.entries(HOURLY_USD);
-  // Sin tabla de precios el campo se emite en null igual: los módulos que lo
-  // usan siguen corriendo y muestran el gasto como desconocido, en vez de
-  // fallar la consulta entera por un dato de configuración que falta.
-  if (entries.length === 0) return "| fieldsAdd precio_hora = null";
-  const rows = entries
-    .map(([sku, price]) => `record(t = "${sku.replace(/["\\]/g, "")}", p = ${Number(price)})`)
-    .join(", ");
-  return `| lookup [data ${rows}], sourceField:instance_type, lookupField:t, fields:{precio_hora = p}`;
+  const layers: { field: string; clause: string }[] = [];
+  if (Object.keys(OWN_PRICES).length > 0) {
+    layers.push({ field: "p_own", clause: dataLookup(OWN_PRICES, "p_own") });
+  }
+  if (PRICE_TABLE) {
+    layers.push({
+      field: "p_table",
+      clause: `| lookup [load "${PRICE_TABLE}" | fields t = instance_type, p = toDouble(usd_per_hour)], sourceField:instance_type, lookupField:t, fields:{p_table = p}`,
+    });
+  }
+  if (LIST_BASE) {
+    layers.push({ field: "p_list", clause: dataLookup(LIST_BASE.prices, "p_list") });
+  }
+  // Sin ninguna capa el campo se emite en null igual: los módulos que lo usan
+  // siguen corriendo y muestran el gasto como desconocido, en vez de fallar la
+  // consulta entera por un dato de configuración que falta.
+  if (layers.length === 0) return "| fieldsAdd precio_hora = null";
+  const fields = layers.map((l) => l.field);
+  const value = fields.length === 1 ? fields[0] : `coalesce(${fields.join(", ")})`;
+  return `${layers.map((l) => l.clause).join("\n")}
+| fieldsAdd precio_hora = ${value}
+| fieldsRemove ${fields.join(", ")}`;
 };
 
 /**

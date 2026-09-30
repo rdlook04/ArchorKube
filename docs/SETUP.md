@@ -132,6 +132,7 @@ Owners are resolved **field by field** through a chain: the first provider that 
 
 | What discovery showed | Put in the chain |
 |---|---|
+| Owners or tiers exist nowhere in the tenant (the usual case for tiers) | Nothing: fill the **ownership table** in Setup (see [Tables to complete](#tables-to-complete)). It goes first in the chain on its own |
 | A label key with the team on most workloads (roughly half or more) | `labelsProvider`, with that key in `OWNERSHIP_KEYS` |
 | Each team has its own namespaces | `namespaceProvider` (the namespace becomes the team), usually last |
 | A catalog outside Kubernetes (Backstage, CMDB, a lookup table in Grail) | Your own provider in `port.ts`, first in the chain |
@@ -141,7 +142,27 @@ The default chain (`manual → labels → namespace`) is a good start for most c
 
 Until the person has confirmed the exclusions, leave `namespaceProvider` out of the chain (`manualProvider(), labelsProvider`): workloads without a label stay as *(no owner)*, which keeps the gap visible. Add it back as the last link once exclusions are settled, and only if teams really own their namespaces.
 
-Setup rates ownership coverage by the share of workloads with a squad: 80% or more is OK, 40–79% needs attention, under 40% is *Not working*.
+Setup rates ownership coverage by the share of workloads with a squad: 80% or more is OK, 40–79% needs attention, under 40% is *Not working*. With owners but no tier at all it says *Needs attention*: findings can't be ranked by business impact.
+
+### Tables to complete
+
+What the tenant can't know (who owns each workload and how critical it is, what you pay per machine) is filled as a table, not as code. Setup shows each one in a highlighted **To complete** box inside the check that needs it:
+
+| Table | Grail path | Columns (key first) | In Setup |
+|---|---|---|---|
+| Ownership | `/lookups/archorkube/ownership` | `workload`, `namespace`, `squad`, `tier`, `tribu`, `appCode` | *Workloads with an owner* |
+| Instance prices | `/lookups/archorkube/prices` | `instance_type`, `usd_per_hour`, `source` | *Instance prices for your node types* |
+
+The flow is the same for both:
+
+1. **Download with my data.** The CSV comes pre-filled from the tenant: every workload with what the app already knows, or every node type with the price it applies today.
+2. **Fill it** in Excel, Google Sheets or any editor. Columns can be in any order, separated by commas or semicolons. Leave a cell empty to let the next source decide.
+3. **Upload it**, from the app (*Upload the completed file*, which validates rows first and needs the `storage:files:write` scope) or from Dynatrace (Settings → Storage management → Grail files → Upload, with the path, lookup field and parse pattern Setup shows).
+4. **Reload the app.** It checks which tables exist when it opens: reading a table that doesn't exist would break every query, so no query mentions one until it's there.
+
+Precedence: the ownership table wins over labels and namespaces, field by field, and goes first in the chain without editing `active.ts`. Prices: `INSTANCE_HOURLY_USD` in `site.ts`, then the price table, then the `PRICE_BASE` list. Once the ownership table exists, Setup adds *Ownership table in Grail*, which lists rows whose workload doesn't exist in the cluster and tiers that aren't a short scale.
+
+Agents: download and upload a table only with data the person gave you or the tenant already has. Never fill tiers or prices yourself.
 
 ### Fill `config/site.ts`
 
@@ -217,7 +238,8 @@ The tenant asks to consent these scopes. What each one is for:
 | `storage:metrics:read` | Usage, requests, limits, restarts, node capacity |
 | `storage:logs:read` | Errors module |
 | `storage:events:read` | Events used by Preventive and Control plane |
-| `storage:buckets:read`, `storage:files:read` | Lookup tables (ownership catalogs) |
+| `storage:buckets:read`, `storage:files:read` | Lookup tables (the tables to complete, ownership catalogs) |
+| `storage:files:write` | Uploading the tables to complete from Setup (only under `/lookups/archorkube/`). Without it, upload them from Dynatrace |
 | `state:user-app-states:read`, `:write` | Each user's language and AI data mode in Settings |
 | `storage:events:write` | One business event per finding sent to an AI outside Dynatrace (never the content) |
 

@@ -10,6 +10,7 @@ import {
   LIST_BASE,
   OWN_PRICES,
   PRICE_BASE,
+  PRICE_TABLE,
   listBaseOf,
   pricingSource,
 } from "../config/pricing";
@@ -28,6 +29,7 @@ import {
   WORKLOAD_NODES,
 } from "../queries/workloads";
 import type { Records } from "./runQuery";
+import { LOOKUP_PATHS, hasLookup, type LookupId } from "../templates/lookups";
 
 /**
  * Chequeos de instalación: qué necesita ArchorKube del tenant para que cada
@@ -54,6 +56,20 @@ export interface CheckResult {
   detail: string;
   /** Líneas extra (sugerencias, valores faltantes). */
   items?: string[];
+  /** Coberturas que se dibujan como barras con color, en vez de texto. */
+  metrics?: CheckMetric[];
+}
+
+/**
+ * Una cobertura en porcentaje. El color lo da el valor (verde, ámbar, rojo),
+ * salvo en las opcionales, que no alarman aunque estén vacías. `hint` dice
+ * qué significa o qué hacer, sobre todo cuando está en 0.
+ */
+export interface CheckMetric {
+  label: string;
+  pct: number;
+  optional?: boolean;
+  hint?: string;
 }
 
 export type CheckGroup = "kubernetes" | "related" | "ownership" | "installation" | "settings";
@@ -76,6 +92,8 @@ interface BaseCheck {
   fix: Localized;
   /** Caminos para arreglarlo, con un ejemplo cada uno, cuando hay más de uno. */
   guide?: FixOption[];
+  /** Plantilla que se completa y se sube para resolverlo sin tocar código. */
+  template?: LookupId;
 }
 
 /** Una forma de arreglar un chequeo: cuándo aplica, qué hacer y un ejemplo. */
@@ -134,8 +152,18 @@ const presence = (
 const OWNERSHIP_GUIDE: FixOption[] = [
   {
     title: {
-      en: "1. Your workloads already carry owner labels",
-      es: "1. Tus workloads ya llevan labels de dueño",
+      en: "1. Fill the ownership table (the fastest, no code)",
+      es: "1. Completar la tabla de dueños (lo más rápido, sin código)",
+    },
+    body: {
+      en: 'Open "Template to fill: Ownership table" in this check. Download it with your workloads already listed, put the tier (and the owner where it is missing) in Excel, and upload it. It works with no change to code or manifests, and wins over labels and namespaces.',
+      es: 'Abre "Plantilla para completar: Tabla de dueños" en este chequeo. Descárgala con tus workloads ya listados, pon el tier (y el dueño donde falte) en Excel y súbela. Funciona sin cambiar código ni manifiestos, y gana sobre labels y namespaces.',
+    },
+  },
+  {
+    title: {
+      en: "2. Your workloads already carry owner labels",
+      es: "2. Tus workloads ya llevan labels de dueño",
     },
     body: {
       en: "Point OWNERSHIP_KEYS in ui/app/config/site.ts at the keys you already use. The keys that come with the example (archorkube.io/*) are only a suggested convention. The \"Ownership label keys\" check lists the keys it finds, with sample values. A tier must look like a short scale (1, 2, 3).",
@@ -153,8 +181,8 @@ const OWNERSHIP_GUIDE: FixOption[] = [
   },
   {
     title: {
-      en: "2. Each team has its own namespaces",
-      es: "2. Cada equipo tiene sus propios namespaces",
+      en: "3. Each team has its own namespaces",
+      es: "3. Cada equipo tiene sus propios namespaces",
     },
     body: {
       en: "Keep namespaceProvider as the last link of the chain in ui/app/ownership/active.ts: the namespace becomes the team. First exclude platform namespaces (monitoring, ingress, the operator) in EXCLUDED_NAMESPACES_EXACT, or they count as teams. A namespace gives the owner only: it can't tell the tier.",
@@ -171,8 +199,8 @@ const OWNERSHIP_GUIDE: FixOption[] = [
   },
   {
     title: {
-      en: "3. Label the workloads (a decision for your organization)",
-      es: "3. Etiquetar los workloads (una decisión de tu organización)",
+      en: "4. Label the workloads (a decision for your organization)",
+      es: "4. Etiquetar los workloads (una decisión de tu organización)",
     },
     body: {
       en: `When the data doesn't exist anywhere, someone who knows the services has to decide it: who owns each one and how critical it is (tier 1 = most critical). ArchorKube doesn't invent it. The labels go on the Deployment or StatefulSet itself, not only on the pod template. If Helm, Argo CD or Flux manages the manifest, put them in the chart or manifest: a label added by hand can be removed on the next sync. Annotations override labels, useful to fix one workload without touching its selectors. Dynatrace picks up the change within minutes.`,
@@ -197,8 +225,8 @@ metadata:
   },
   {
     title: {
-      en: "4. Owners live in a catalog, or a few resolve wrong",
-      es: "4. Los dueños están en un catálogo, o unos pocos salen mal",
+      en: "5. Owners live in a catalog, or a few resolve wrong",
+      es: "5. Los dueños están en un catálogo, o unos pocos salen mal",
     },
     body: {
       en: "For a handful of workloads, or to give a tier where no label has one, add manual rules first in the chain (by exact name or by prefix). For a catalog (Backstage, a CMDB, a lookup table in Grail), write a provider in ui/app/ownership/port.ts. See docs/OWNERSHIP.md.",
@@ -305,6 +333,15 @@ const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
   const { coverage, samples, sample } = countKeys(records, lang);
 
   const items: string[] = [];
+  // Barras neutras: que una clave no se use no es un problema si los dueños
+  // salen de otra fuente. El veredicto es de "Workloads with an owner".
+  const metrics: CheckMetric[] = [];
+  const fieldName: Record<keyof typeof OWNERSHIP_KEYS, string> = {
+    tier: "Tier",
+    squad: l("Owner (squad)", "Dueño (squad)"),
+    tribu: l("Tribe / domain", "Tribu / dominio"),
+    appCode: l("App code", "Código de aplicación"),
+  };
   let suggestions = 0;
   for (const field of Object.keys(OWNERSHIP_KEYS) as (keyof typeof OWNERSHIP_KEYS)[]) {
     const configured = OWNERSHIP_KEYS[field];
@@ -328,22 +365,21 @@ const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
       .filter(([k]) => k !== configured && FIELD_HINTS[field].test(k) && fits(k))
       .sort((a, b) => b[1] - a[1])[0];
     const bestPct = best ? pct(best[1], total) : 0;
-    if (best && bestPct >= configuredPct + 10) {
-      suggestions++;
-      items.push(
-        l(
-          `${field}: configured "${configured}" is on ${configuredPct}% of workloads${sample(configured)}; "${best[0]}" is on ${bestPct}%${sample(best[0])}. If the values mean the same, set OWNERSHIP_KEYS.${field} = "${best[0]}" in ui/app/config/site.ts.`,
-          `${field}: la clave configurada "${configured}" está en el ${configuredPct}% de los workloads${sample(configured)}; "${best[0]}" está en el ${bestPct}%${sample(best[0])}. Si los valores significan lo mismo, pon OWNERSHIP_KEYS.${field} = "${best[0]}" en ui/app/config/site.ts.`,
-        ),
-      );
-    } else {
-      items.push(
-        l(
-          `${field}: "${configured}" is on ${configuredPct}% of workloads.`,
-          `${field}: "${configured}" está en el ${configuredPct}% de los workloads.`,
-        ),
-      );
-    }
+    const better = best && bestPct >= configuredPct + 10;
+    if (better) suggestions++;
+    metrics.push({
+      label: `${fieldName[field]} · ${configured}`,
+      pct: configuredPct,
+      optional: true,
+      hint: better
+        ? l(
+            `"${best[0]}" is on ${bestPct}%${sample(best[0])}. If the values mean the same, set OWNERSHIP_KEYS.${field} = "${best[0]}" in ui/app/config/site.ts.`,
+            `"${best[0]}" está en el ${bestPct}%${sample(best[0])}. Si los valores significan lo mismo, pon OWNERSHIP_KEYS.${field} = "${best[0]}" en ui/app/config/site.ts.`,
+          )
+        : configuredPct > 0
+          ? sample(configured).trim() || undefined
+          : l("No workload carries this key.", "Ningún workload lleva esta clave."),
+    });
   }
 
   // Filtros declarados que la app descartó (id con guion, sin clave): sin este
@@ -364,22 +400,20 @@ const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
   for (const filter of EXTRA_FILTERS.filter((f) => !isNamespaceScoped(f))) {
     const share = pct(coverage.get(filter.key) ?? 0, total);
     const single = (samples.get(filter.key)?.size ?? 0) === 1;
-    items.push(
-      share === 0
-        ? l(
-            `Optional filter "${filterLabel(filter, lang)}": "${filter.key}" wasn't found, so the filter is hidden.`,
-            `Filtro opcional "${filterLabel(filter, lang)}": no se encontró "${filter.key}", así que el filtro queda oculto.`,
-          )
-        : single
-          ? l(
-              `Optional filter "${filterLabel(filter, lang)}": "${filter.key}" is on ${share}% of workloads but has a single value${sample(filter.key)}, so filtering by it changes nothing.`,
-              `Filtro opcional "${filterLabel(filter, lang)}": "${filter.key}" está en el ${share}% de los workloads pero tiene un solo valor${sample(filter.key)}, así que filtrar por él no cambia nada.`,
-            )
-          : l(
-              `Optional filter "${filterLabel(filter, lang)}": "${filter.key}" is on ${share}% of workloads${sample(filter.key)}.`,
-              `Filtro opcional "${filterLabel(filter, lang)}": "${filter.key}" está en el ${share}% de los workloads${sample(filter.key)}.`,
-            ),
-    );
+    metrics.push({
+      label: `${l("Filter", "Filtro")}: ${filterLabel(filter, lang)} · ${filter.key}`,
+      pct: share,
+      optional: true,
+      hint:
+        share === 0
+          ? l("Not found, so the filter is hidden.", "No se encontró, así que el filtro queda oculto.")
+          : single
+            ? l(
+                `A single value${sample(filter.key)}: filtering by it changes nothing.`,
+                `Un solo valor${sample(filter.key)}: filtrar por él no cambia nada.`,
+              )
+            : sample(filter.key).trim() || undefined,
+    });
   }
 
   // Claves que suelen servir como filtro y todavía no se usan en ningún lado.
@@ -422,6 +456,7 @@ const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
         `Algunas claves de propiedad o filtros opcionales necesitan un cambio (${total} workloads revisados).`,
       ),
       items,
+      metrics,
     };
   }
   // Nadie lleva las claves de dueño configuradas: casi siempre son las del
@@ -438,6 +473,7 @@ const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
         `Ninguno de los ${total} workloads lleva las claves de dueño configuradas (${OWNERSHIP_KEYS.squad}, ${OWNERSHIP_KEYS.tier}, ${OWNERSHIP_KEYS.tribu}), así que las labels no dan dueño ni tier. Está bien si los dueños salen de otra fuente: "Workloads con dueño" muestra la cobertura real.`,
       ),
       items,
+      metrics,
     };
   }
   return {
@@ -446,6 +482,54 @@ const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
       `The configured label keys match what your workloads carry (${total} workloads scanned).`,
       `Las claves configuradas coinciden con las labels de tus workloads (${total} workloads revisados).`,
     ),
+    items,
+    metrics,
+  };
+};
+
+/**
+ * La tabla de dueños subida a Grail: cuántas filas cruzan con un workload real
+ * y cuáles tienen un tier que no parece tier. Un nombre mal escrito no rompe
+ * nada, simplemente no cruza, así que conviene verlo aquí.
+ */
+const evaluateOwnershipTable = (records: Records, lang: Lang): CheckResult => {
+  const l = pick(lang);
+  const rows = records.length;
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const unknown = records.filter((r) => r.known !== true).map((r) => str(r.workload));
+  const badTier = records.filter((r) => str(r.tier) !== "" && !VALUE_SHAPE.tier!.test(str(r.tier)));
+  const noTier = records.filter((r) => str(r.tier) === "").length;
+  const items: string[] = [
+    l(
+      `${rows - unknown.length} of ${rows} rows match a workload in your clusters; ${noTier} rows have no tier.`,
+      `${rows - unknown.length} de ${rows} filas cruzan con un workload de tus clusters; ${noTier} filas no tienen tier.`,
+    ),
+  ];
+  if (unknown.length > 0) {
+    items.push(
+      l(
+        `Not found in the cluster (check the name): ${unknown.slice(0, 5).join(", ")}${unknown.length > 5 ? "…" : ""}`,
+        `No están en el cluster (revisa el nombre): ${unknown.slice(0, 5).join(", ")}${unknown.length > 5 ? "…" : ""}`,
+      ),
+    );
+  }
+  for (const r of badTier.slice(0, 5)) {
+    items.push(
+      l(
+        `${str(r.workload)}: tier "${str(r.tier)}" isn't a short scale (1, 2, 3).`,
+        `${str(r.workload)}: el tier "${str(r.tier)}" no es una escala corta (1, 2, 3).`,
+      ),
+    );
+  }
+  return {
+    status: rows === 0 || unknown.length > 0 || badTier.length > 0 ? "warn" : "ok",
+    detail:
+      rows === 0
+        ? l("The table exists but has no rows.", "La tabla existe pero no tiene filas.")
+        : l(
+            `The table is in use (${rows} rows).`,
+            `La tabla está en uso (${rows} filas).`,
+          ),
     items,
   };
 };
@@ -880,6 +964,7 @@ export const CHECKS: SetupCheck[] = [
       es: "Dueños y tiers salen de la cadena de ui/app/ownership/active.ts: gana la primera fuente que responde, campo por campo. Elige el camino según dónde esté tu dato. Quien instala no inventa dueños ni tiers: cuando no existen en ningún lado, los decide la organización.",
     },
     guide: OWNERSHIP_GUIDE,
+    template: "ownership",
     query: `${WORKLOAD_NODES}
 ${excludedNamespacesClause()}
 ${ownership.enrich("k8s.workload.name")}
@@ -898,12 +983,46 @@ ${ownership.enrich("k8s.workload.name")}
         };
       }
       const squad = pct(count(records, "with_squad"), total);
-      const items = [
-        `squad: ${squad}%`,
-        `tier: ${pct(count(records, "with_tier"), total)}%`,
-        `${l("tribe/domain", "tribu/dominio")}: ${pct(count(records, "with_tribu"), total)}%`,
-        `app code: ${pct(count(records, "with_app"), total)}%`,
+      const tier = pct(count(records, "with_tier"), total);
+      const tribu = pct(count(records, "with_tribu"), total);
+      const app = pct(count(records, "with_app"), total);
+      const missing = l(
+        "No source gives it. Fill it in the ownership table below.",
+        "Ninguna fuente lo da. Complétalo en la tabla de dueños, más abajo.",
+      );
+      const metrics: CheckMetric[] = [
+        {
+          label: l("Owner (squad)", "Dueño (squad)"),
+          pct: squad,
+          hint: squad === 0 ? missing : undefined,
+        },
+        {
+          label: l("Tier (business criticality)", "Tier (criticidad de negocio)"),
+          pct: tier,
+          hint:
+            tier === 0
+              ? missing
+              : tier < 80
+                ? l(
+                    "Workloads without a tier can't be ranked by impact: the ownership table below lists them.",
+                    "Los workloads sin tier no se pueden ordenar por impacto: la tabla de dueños, más abajo, los lista.",
+                  )
+                : undefined,
+        },
+        {
+          label: l("Tribe / domain", "Tribu / dominio"),
+          pct: tribu,
+          optional: true,
+          hint: l("Optional: groups teams in charts.", "Opcional: agrupa equipos en las gráficas."),
+        },
+        {
+          label: l("App code", "Código de aplicación"),
+          pct: app,
+          optional: true,
+          hint: l("Optional.", "Opcional."),
+        },
       ];
+      const items: string[] = [];
       const status: CheckStatus = squad >= 80 ? "ok" : squad >= 40 ? "warn" : "fail";
       // Con dueño pero sin ningún tier la app funciona, pero no puede ordenar
       // los hallazgos por impacto de negocio, que es la mitad de su propósito.
@@ -915,6 +1034,7 @@ ${ownership.enrich("k8s.workload.name")}
             `El ${squad}% de ${total} workloads tiene dueño, pero ninguno tiene tier: los hallazgos no se pueden ordenar por impacto de negocio, y Tiers y Tiers pendientes los muestran "sin tier".`,
           ),
           items,
+          metrics,
         };
       }
       return {
@@ -924,6 +1044,7 @@ ${ownership.enrich("k8s.workload.name")}
           `El ${squad}% de ${total} workloads tiene dueño.`,
         ),
         items,
+        metrics,
       };
     },
   },
@@ -948,6 +1069,35 @@ ${ownership.enrich("k8s.workload.name")}
     guide: OWNERSHIP_GUIDE,
     evaluate: evaluateLabelDiscovery,
   },
+  ...(hasLookup("ownership")
+    ? [
+        {
+          kind: "query" as const,
+          id: "ownership-table",
+          group: "ownership" as const,
+          title: { en: "Ownership table in Grail", es: "Tabla de dueños en Grail" },
+          affects: {
+            en: "Owners and tiers of every module",
+            es: "Dueños y tiers de todos los módulos",
+          },
+          fix: {
+            en: "Download the table with your current data, fix the rows listed above and upload it again. Workload names must match the cluster exactly.",
+            es: "Descarga la tabla con tus datos actuales, corrige las filas de arriba y vuelve a subirla. Los nombres de workload tienen que coincidir exactamente con el cluster.",
+          },
+          template: "ownership" as const,
+          query: `load "${LOOKUP_PATHS.ownership}"
+| fields workload, tier, squad
+| lookup [
+    ${WORKLOAD_NODES}
+    | summarize n = count(), by:{w = k8s.workload.name}
+  ], sourceField:workload, lookupField:w, fields:{n}
+| fields workload, tier, squad, known = isNotNull(n)
+| limit 10000`,
+          maxRecords: 10000,
+          evaluate: evaluateOwnershipTable,
+        },
+      ]
+    : []),
   {
     kind: "query",
     id: "namespace-labels",
@@ -1004,11 +1154,18 @@ ${ownership.enrich("k8s.workload.name")}
       es: "Gasto, USD en Rightsizing y Ociosos",
     },
     fix: {
-      en: 'Set PRICE_BASE in ui/app/config/site.ts to your cloud ("azure", "aws" or "gcp") to use its list prices. For on-premise nodes, a contract price or a type the list lacks, add it to INSTANCE_HOURLY_USD: your own prices always win. Name where they come from in PRICING_SOURCE.',
-      es: 'Pon PRICE_BASE en ui/app/config/site.ts con tu nube ("azure", "aws" o "gcp") para usar sus precios de lista. Para nodos on-premise, un precio de contrato o un tipo que la lista no tiene, agrégalo a INSTANCE_HOURLY_USD: tus precios siempre ganan. Di de dónde salen en PRICING_SOURCE.',
+      en: 'The fastest way: fill the price table ("Template to fill" in this check) with your contract, region or on-premise prices and upload it. For list prices, set PRICE_BASE in ui/app/config/site.ts to your cloud ("azure", "aws" or "gcp"). Your own prices (the table, or INSTANCE_HOURLY_USD in site.ts) always win over the list.',
+      es: 'Lo más rápido: completa la tabla de precios ("Plantilla para completar" en este chequeo) con los precios de tu contrato, tu región o tu on-premise y súbela. Para precios de lista, pon PRICE_BASE en ui/app/config/site.ts con tu nube ("azure", "aws" o "gcp"). Tus precios (la tabla, o INSTANCE_HOURLY_USD en site.ts) siempre ganan sobre la lista.',
     },
-    query:
-      "smartscapeNodes K8S_NODE | fields t = tags[`beta.kubernetes.io/instance-type`], region = tags[`topology.kubernetes.io/region`], os = tags[`kubernetes.io/os`] | summarize n = count(), by:{t, region, os}",
+    template: "prices",
+    // Con tabla de precios subida, su precio viaja en cada fila (p_table):
+    // en el navegador solo se conocen los de código.
+    query: `smartscapeNodes K8S_NODE | fields t = tags[\`beta.kubernetes.io/instance-type\`], region = tags[\`topology.kubernetes.io/region\`], os = tags[\`kubernetes.io/os\`] | summarize n = count(), by:{t, region, os}${
+      PRICE_TABLE
+        ? `
+| lookup [load "${PRICE_TABLE}" | fields it = instance_type, p = toDouble(usd_per_hour)], sourceField:t, lookupField:it, fields:{p_table = p}`
+        : ""
+    }`,
     evaluate: (records, lang) => {
       const l = pick(lang);
       const total = records.reduce((s, r) => s + Number(r.n ?? 0), 0);
@@ -1023,7 +1180,8 @@ ${ownership.enrich("k8s.workload.name")}
       }
       const n = (rows: Records) => rows.reduce((s, r) => s + Number(r.n ?? 0), 0);
       const type = (r: Records[number]) => (typeof r.t === "string" ? r.t : "");
-      const missing = records.filter((r) => !(type(r) in HOURLY_USD));
+      const priced = (r: Records[number]) => type(r) in HOURLY_USD || r.p_table != null;
+      const missing = records.filter((r) => !priced(r));
       const share = pct(total - n(missing), total);
       const items: string[] = [];
 
@@ -1048,8 +1206,8 @@ ${ownership.enrich("k8s.workload.name")}
       for (const r of missing.slice(0, 8)) {
         items.push(
           l(
-            `Missing price: ${type(r) || "(no type)"} (${Number(r.n)} nodes). Add it to INSTANCE_HOURLY_USD.`,
-            `Falta precio: ${type(r) || "(sin tipo)"} (${Number(r.n)} nodos). Agrégalo a INSTANCE_HOURLY_USD.`,
+            `Missing price: ${type(r) || "(no type)"} (${Number(r.n)} nodes). Add it to the price table.`,
+            `Falta precio: ${type(r) || "(sin tipo)"} (${Number(r.n)} nodos). Agrégalo a la tabla de precios.`,
           ),
         );
       }
@@ -1059,7 +1217,7 @@ ${ownership.enrich("k8s.workload.name")}
       const list = LIST_BASE;
       if (list) {
         const fromList = records.filter(
-          (r) => !(type(r) in OWN_PRICES) && type(r) in list.prices,
+          (r) => !(type(r) in OWN_PRICES) && r.p_table == null && type(r) in list.prices,
         );
         const regions = [
           ...new Set(
@@ -1071,8 +1229,8 @@ ${ownership.enrich("k8s.workload.name")}
         if (regions.length > 0) {
           items.push(
             l(
-              `List prices are from ${list.region}; your nodes run in ${regions.join(", ")}. Prices differ by region, so spend is an approximation. For exact figures, add your prices to INSTANCE_HOURLY_USD.`,
-              `Los precios de lista son de ${list.region}; tus nodos corren en ${regions.join(", ")}. El precio cambia según la región, así que el gasto es aproximado. Para cifras exactas, agrega tus precios a INSTANCE_HOURLY_USD.`,
+              `List prices are from ${list.region}; your nodes run in ${regions.join(", ")}. Prices differ by region, so spend is an approximation. For exact figures, upload your prices in the price table.`,
+              `Los precios de lista son de ${list.region}; tus nodos corren en ${regions.join(", ")}. El precio cambia según la región, así que el gasto es aproximado. Para cifras exactas, sube tus precios en la tabla de precios.`,
             ),
           );
         }
@@ -1080,8 +1238,8 @@ ${ownership.enrich("k8s.workload.name")}
         if (windows > 0) {
           items.push(
             l(
-              `${windows} Windows node(s) are priced as Linux, which is lower. Add their price to INSTANCE_HOURLY_USD.`,
-              `${windows} nodo(s) Windows se valorizan como Linux, que es más barato. Agrega su precio a INSTANCE_HOURLY_USD.`,
+              `${windows} Windows node(s) are priced as Linux, which is lower. Add their price to the price table.`,
+              `${windows} nodo(s) Windows se valorizan como Linux, que es más barato. Agrega su precio a la tabla de precios.`,
             ),
           );
         }
@@ -1091,7 +1249,7 @@ ${ownership.enrich("k8s.workload.name")}
       return {
         status: share === 100 ? "ok" : "warn",
         detail:
-          Object.keys(HOURLY_USD).length === 0
+          Object.keys(HOURLY_USD).length === 0 && !PRICE_TABLE
             ? l(
                 "No prices configured: spend shows as unknown instead of wrong.",
                 "No hay precios configurados: el gasto aparece como desconocido en vez de mal calculado.",

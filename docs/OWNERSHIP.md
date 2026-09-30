@@ -91,6 +91,14 @@ export const OWNERSHIP_KEYS = {
 >
 > Apuntar `OWNERSHIP_KEYS` a las claves que ya existen cuesta una línea; reetiquetar mil workloads, no.
 
+### `lookupProvider` — la tabla de dueños de Grail
+
+Una fila por workload (`workload`, `namespace`, `squad`, `tier`, `tribu`, `appCode`) en `/lookups/archorkube/ownership`. Es el camino sin código para lo que ninguna otra fuente sabe, casi siempre el tier: Setup genera la plantilla con los workloads del tenant, alguien la completa y la sube (desde la app o desde Dynatrace). Ver *Tables to complete* en [SETUP.md](SETUP.md#tables-to-complete).
+
+No hace falta agregarlo a `active.ts`: cuando la tabla existe, `ownership/index.ts` lo pone primero en la cadena. Mientras no existe se comporta como `noneProvider`, porque leer con `load` una tabla inexistente haría fallar todas las consultas. La app decide si existe una vez, al abrir (`templates/lookups.ts`).
+
+El cruce es por nombre de workload; si el mismo nombre existe en dos namespaces, gana la primera fila.
+
 ### `namespaceProvider` — el namespace es el equipo
 
 El más burdo y a la vez el que más veces acierta en clusters sin gobierno. No deduce tier ni dominio, solo dueño, y eso es correcto: derivar un tier del nombre de un namespace sería adivinar.
