@@ -2,7 +2,7 @@
   "$schema": "./.dt-app/app.config.schema.json",
   "app": {
     "name": "ArchorKube",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "description": "Kubernetes best practices con priorización por tiers para squads",
     "id": "my.archor.kube",
     "scopes": [
