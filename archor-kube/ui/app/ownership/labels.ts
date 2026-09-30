@@ -1,6 +1,12 @@
 import type { OwnershipProvider } from "./types";
 import { OWNERSHIP_KEYS } from "../config/site";
 import { IGNORED_DQL } from "./canonical";
+import {
+  WORKLOAD_ANNOTATIONS,
+  WORKLOAD_LABELS,
+  WORKLOAD_NAME,
+  WORKLOAD_NODES,
+} from "../queries/workloads";
 
 /**
  * Proveedor por labels/annotations de Kubernetes. Es el default público: no
@@ -32,25 +38,18 @@ import { IGNORED_DQL } from "./canonical";
 export { OWNERSHIP_KEYS };
 
 /**
- * De dónde se leen labels y annotations en Grail.
- *
- * Los nombres verificados contra un tenant real (2026-08-24) son
- * `cloudApplicationLabels` y `kubernetesAnnotations`. Ojo: NO es
- * `kubernetesLabels` — ese campo no existe y usarlo hace fallar la consulta
- * entera, no solo el enriquecimiento.
- *
- * Aun así, confírmalo en el tuyo antes de activarlo: qué propiedades de entidad
- * existen depende de la versión del operador y de qué esté configurado para
- * ingerirse. `describe dt.entity.cloud_application` las lista todas.
+ * De dónde se leen labels y annotations en Grail: los nodos de workload de
+ * Smartscape (`queries/workloads.ts`), que existen tanto en tenants con
+ * entidades clásicas como en los que ya no las tienen.
  *
  * Si las labels no llegan, usa el proveedor `manual` o `namespace`: la app no
  * puede inventarlas.
  */
 const SOURCE = {
-  entityType: "dt.entity.cloud_application",
-  nameField: "entity.name",
-  labelsField: "cloudApplicationLabels",
-  annotationsField: "kubernetesAnnotations",
+  nodes: WORKLOAD_NODES,
+  nameField: WORKLOAD_NAME,
+  labelsField: WORKLOAD_LABELS,
+  annotationsField: WORKLOAD_ANNOTATIONS,
 } as const;
 
 
@@ -91,7 +90,7 @@ export const labelsProvider: OwnershipProvider = {
   enrich: (sourceField, suffix = "") => {
     const s = suffix;
     return `| lookup [
-    fetch ${SOURCE.entityType}
+    ${SOURCE.nodes}
     | fields wl${s} = ${SOURCE.nameField}, lbl${s} = ${SOURCE.labelsField}, ann${s} = ${SOURCE.annotationsField}
     | limit 10000
   ], sourceField:${sourceField}, lookupField:wl${s}, fields:{lbl${s}, ann${s}}
@@ -106,7 +105,7 @@ export const labelsProvider: OwnershipProvider = {
    * Los selectores se arman con los valores que realmente existen en el
    * cluster: si nadie usó tier 3, tier 3 no aparece en el desplegable.
    */
-  filterOptions: `fetch ${SOURCE.entityType}
+  filterOptions: `${SOURCE.nodes}
 | fields lbl = ${SOURCE.labelsField}, ann = ${SOURCE.annotationsField}
 | fieldsAdd tier = ${readKey(OWNERSHIP_KEYS.tier, "")},
             squad = ${readKey(OWNERSHIP_KEYS.squad, "")},
@@ -120,7 +119,7 @@ export const labelsProvider: OwnershipProvider = {
    * los que NO tienen dueño: esa fila es el hallazgo más accionable de la
    * página, no un error de la consulta.
    */
-  catalog: `fetch ${SOURCE.entityType}
+  catalog: `${SOURCE.nodes}
 | fields repo = ${SOURCE.nameField}, lbl = ${SOURCE.labelsField}, ann = ${SOURCE.annotationsField}
 | fieldsAdd tier = ${readKey(OWNERSHIP_KEYS.tier, "")},
             squad = ${readKey(OWNERSHIP_KEYS.squad, "")},

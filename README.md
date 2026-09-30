@@ -106,7 +106,7 @@ npm run deploy
 
 Antes de confiar en los números, dos cosas que dependen de tu entorno:
 
-1. **Verifica que llegan las labels.** En un notebook: `describe dt.entity.cloud_application` y busca `cloudApplicationLabels` / `kubernetesAnnotations`. Si no están, tu operador no las envía — usa el proveedor `manual` o `namespace`. (Cuidado: **no** es `kubernetesLabels`; ese campo no existe y usarlo hace fallar la consulta entera.)
+1. **Verifica que llegan las labels.** En un notebook: ``smartscapeNodes K8S_DEPLOYMENT | fields k8s.workload.name, `tags:k8s.labels` | limit 5``. Si vienen vacías, tu operador no las envía — usa el proveedor `manual` o `namespace`. La pantalla **Setup** de la app hace esta revisión por ti.
 2. **Pon tus precios.** El modelo de costo trae valores de orden de magnitud. Los tipos de instancia de tu flota y su precio van en `ui/app/config/site.ts`; sin eso, el gasto sale como desconocido en vez de mal calculado.
 
 ---

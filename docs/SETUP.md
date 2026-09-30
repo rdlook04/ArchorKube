@@ -63,11 +63,11 @@ Every check the app runs lives in one file: [`archor-kube/ui/app/setup/checks.ts
 
 The three discovery queries that decide the configuration:
 
-**Where owners live (label keys).** Counts how many workloads carry each label key. The labels provider reads this same source. Run it again with `kubernetesAnnotations` in place of `cloudApplicationLabels` to count annotations.
+**Where owners live (label keys).** Counts how many workloads carry each label key. The labels provider reads this same source. Run it again with `` `tags:k8s.annotations` `` in place of `` `tags:k8s.labels` `` to count annotations. Workloads come from Smartscape, which every tenant has; the classic `dt.entity.cloud_application` doesn't exist on newer tenants.
 
 ```
-fetch dt.entity.cloud_application
-| fields id, s = toString(cloudApplicationLabels)
+smartscapeNodes K8S_DEPLOYMENT, K8S_STATEFULSET, K8S_DAEMONSET, K8S_CRONJOB
+| fields id, s = toString(`tags:k8s.labels`)
 | fieldsAdd pair = splitString(s, "\", \"")
 | expand pair
 | parse pair, "LD:k '\":'"
@@ -79,8 +79,8 @@ fetch dt.entity.cloud_application
 Then look at the values of each candidate key before deciding what it means (replace `team`):
 
 ```
-fetch dt.entity.cloud_application
-| fields v = coalesce(kubernetesAnnotations[`team`], cloudApplicationLabels[`team`])
+smartscapeNodes K8S_DEPLOYMENT, K8S_STATEFULSET, K8S_DAEMONSET, K8S_CRONJOB
+| fields v = coalesce(`tags:k8s.annotations`[`team`], `tags:k8s.labels`[`team`])
 | filter isNotNull(v)
 | summarize workloads = count(), by:{v}
 | sort workloads desc
@@ -150,8 +150,9 @@ Setup rates ownership coverage by the share of workloads with a squad: 80% or mo
 | `OWNERSHIP_KEYS` | The label keys for tier, squad, tribe/domain and app code | Discovery query 1 |
 | `EXTRA_FILTERS` | Other label keys people want to filter and group charts by (business criticality, cost center, product, environment), on the workload or on its namespace | Discovery query 1 (keys that aren't owners) and the namespace labels query |
 | `EXCLUDED_NAMESPACES_EXACT` / `_CONTAINING` | System and platform namespaces that aren't workloads of any team. Prefer exact names: a substring like `system` also drops a team namespace called `payment-system` | Ask the person; Setup flags platform namespaces left in and team namespaces dropped by a substring |
-| `INSTANCE_HOURLY_USD` | Hourly price for each instance type found | Discovery query 2 + the person's pricing (list price or contract) |
-| `PRICING_SOURCE` | Where the prices came from, in words (it shows next to the numbers). Without prices, leave the default: it says no source is configured | The person |
+| `PRICE_BASE` | `"azure"`, `"aws"` or `"gcp"` to price nodes at that cloud's list price (on-demand, Linux, one reference region), or `"none"` for on-premise or own prices only. Setup suggests the base from your node types | Discovery query 2; the person confirms |
+| `INSTANCE_HOURLY_USD` | Your own hourly price per instance type. It always wins over the list: use it for a contract price, another region, Windows nodes, on-premise or a type the list lacks | The person's pricing |
+| `PRICING_SOURCE` | Where your own prices come from, in words (it shows next to the numbers) | The person |
 
 `EXTRA_FILTERS` example:
 

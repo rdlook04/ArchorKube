@@ -5,16 +5,19 @@ import Colors from "@dynatrace/strato-design-tokens/colors";
 import { ModulePage, dotted, type ModuleEnglish } from "../components/ModulePage";
 import { NodeTrendChart } from "../components/NodeTrendChart";
 import { nodeInventory, spendByInstanceType } from "../queries/spend";
-import { INSTANCE_HOURLY_USD, PRICING_SOURCE } from "../config/site";
+import { OWN_PRICES, pricingSource } from "../config/pricing";
 
 /**
- * Los precios configurados, en texto, para que la explicación diga siempre lo
- * que el cálculo usa de verdad y no una tabla que quedó vieja en un comentario.
+ * Los precios propios, en texto, para que la explicación diga siempre lo que
+ * el cálculo usa de verdad y no una tabla que quedó vieja en un comentario.
+ * Los de la base de lista no se enumeran: son cientos.
  */
-const priceList =
-  Object.entries(INSTANCE_HOURLY_USD)
+const ownPrices = (sep: string): string =>
+  Object.entries(OWN_PRICES)
     .map(([sku, usd]) => `\`${sku}\` ${usd.toFixed(4)} USD/h`)
-    .join(" y ") || "sin tipos de instancia configurados";
+    .join(sep);
+
+const priceList = ownPrices(" y ");
 
 /** Resalta los nodos recién creados: son los que mueven el gasto. */
 
@@ -62,12 +65,9 @@ La nube factura las máquinas **por hora, no por mes**. Por eso el conteo de nod
 2. **Ver la tendencia:** la gráfica muestra si el número de máquinas crece. Un escalón hacia arriba que no baja es gasto nuevo permanente.
 3. **Detectar rotación:** muchos nodos con pocos días de vida significan que el autoscaler está creando y destruyendo constantemente.
 
-**Precios:** ${PRICING_SOURCE}: ${priceList}. Con reserved instances o acuerdos empresariales el costo real puede ser 20-40 % menor, así que estas cifras son un techo. Un tipo de instancia sin precio en la tabla aparece sin gasto, no en cero.`;
+**Precios:** ${pricingSource("es")}${priceList ? `. Precios propios: ${priceList}` : ""}. Con reserved instances o acuerdos empresariales el costo real puede ser 20-40 % menor, así que estas cifras son un techo. Un tipo de instancia sin precio en la tabla aparece sin gasto, no en cero.`;
 
-const priceListEn =
-  Object.entries(INSTANCE_HOURLY_USD)
-    .map(([sku, usd]) => `\`${sku}\` ${usd.toFixed(4)} USD/h`)
-    .join(" and ") || "no instance types configured";
+const priceListEn = ownPrices(" and ");
 
 const spendAboutEn = `## 📊 What the report shows
 
@@ -98,7 +98,7 @@ The cloud bills machines **by the hour, not by the month**. That's why the node 
 2. **See the trend:** the chart shows whether the number of machines grows. A step up that doesn't come down is new permanent spend.
 3. **Spot churn:** many nodes with few days of life mean the autoscaler keeps creating and destroying them.
 
-**Prices:** ${PRICING_SOURCE}: ${priceListEn}. With reserved instances or enterprise agreements the real cost can be 20-40% lower, so these figures are a ceiling. An instance type without a price in the table shows up with no spend, not with zero.`;
+**Prices:** ${pricingSource("en")}${priceListEn ? `. Your own prices: ${priceListEn}` : ""}. With reserved instances or enterprise agreements the real cost can be 20-40% lower, so these figures are a ceiling. An instance type without a price in the table shows up with no spend, not with zero.`;
 
 const spendEn: ModuleEnglish = {
   title: "Spend (M13 — Infrastructure)",

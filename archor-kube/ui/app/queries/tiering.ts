@@ -3,6 +3,7 @@ import { catalogWindow } from "./analysisWindow";
 import { ownership, providerText } from "../ownership";
 import { tierLookupJoin } from "./tierJoin";
 import { qx } from "./lang";
+import { WORKLOAD_NAME, WORKLOAD_NODES } from "./workloads";
 
 /**
  * M7 — Tieraje (SPEC §4).
@@ -22,8 +23,8 @@ import { qx } from "./lang";
  */
 
 /** Inventario derivado de los workloads vivos, para proveedores sin catálogo. */
-const WORKLOAD_INVENTORY = `fetch dt.entity.cloud_application
-| fields repo = entity.name
+const WORKLOAD_INVENTORY = `${WORKLOAD_NODES}
+| fields repo = ${WORKLOAD_NAME}, k8s.namespace.name
 ${tierLookupJoin("repo")}
 | fieldsAdd application = appCode, domain = tribu
 | fields repo, application, squad, tier, domain

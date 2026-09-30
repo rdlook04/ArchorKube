@@ -2,6 +2,12 @@ import type { QueryParams } from "./types";
 import { ownership } from "../ownership";
 import { EXTRA_FILTERS, type ExtraFilter, isNamespaceScoped } from "../config/extraFilters";
 import { excludedNamespacesClause } from "./namespaces";
+import {
+  WORKLOAD_ANNOTATIONS,
+  WORKLOAD_LABELS,
+  WORKLOAD_NAME,
+  WORKLOAD_NODES,
+} from "./workloads";
 
 /**
  * Puente entre los módulos de análisis y la capa de propiedad.
@@ -28,12 +34,12 @@ export const labelValue = (key: string, ann: string, lbl: string): string =>
 
 /**
  * Une las labels y annotations del workload con los nombres de campo pedidos.
- * La fuente es la misma que la del proveedor de labels (cloud_application).
+ * La fuente es la misma que la del proveedor de labels (`workloads.ts`).
  */
 export const workloadLabelsLookup = (sourceField: string, ann: string, lbl: string): string =>
   `| lookup [
-    fetch dt.entity.cloud_application
-    | fields ${ann}_wl = entity.name, ${lbl} = cloudApplicationLabels, ${ann} = kubernetesAnnotations
+    ${WORKLOAD_NODES}
+    | fields ${ann}_wl = ${WORKLOAD_NAME}, ${lbl} = ${WORKLOAD_LABELS}, ${ann} = ${WORKLOAD_ANNOTATIONS}
     | limit 10000
   ], sourceField:${sourceField}, lookupField:${ann}_wl, fields:{${lbl}, ${ann}}`;
 
@@ -140,16 +146,17 @@ export const extraFilterOptionsQuery = (filter: ExtraFilter): string =>
 | summarize n = count(), by:{value}
 | sort n desc
 | limit 500`
-    : `fetch dt.entity.cloud_application
-| fields value = ${labelValue(filter.key, "kubernetesAnnotations", "cloudApplicationLabels")}
+    : `${WORKLOAD_NODES}
+| fields value = ${labelValue(filter.key, WORKLOAD_ANNOTATIONS, WORKLOAD_LABELS)}
 | filter isNotNull(value) and value != ""
 | summarize n = count(), by:{value}
 | sort n desc
 | limit 500`;
 
-/** Opciones del selector de clúster (entidades K8s del environment). */
-export const CLUSTER_FILTER_OPTIONS_QUERY = `fetch dt.entity.kubernetes_cluster
-| fields cluster = entity.name
+/** Opciones del selector de clúster (los clústeres K8s de Smartscape). */
+export const CLUSTER_FILTER_OPTIONS_QUERY = `smartscapeNodes K8S_CLUSTER
+| summarize n = count(), by:{cluster = name}
+| fields cluster
 | sort cluster asc`;
 
 /**

@@ -71,21 +71,21 @@ export const OWNERSHIP_KEYS = {
 };
 ```
 
-> **Verifica esto antes de confiar en él.** El nombre de las propiedades de entidad donde Grail guarda labels y annotations varía según la versión del operador de Kubernetes y de qué esté configurado para ingerirse. En un notebook:
+> **Verifica esto antes de confiar en él.** Las labels y annotations se leen de los nodos de workload de Smartscape (`tags:k8s.labels` y `tags:k8s.annotations`, ver `ui/app/queries/workloads.ts`). No de la entidad clásica `dt.entity.cloud_application`: los tenants nuevos no la tienen, y consultarla hace fallar la consulta entera. En un notebook:
 >
 > ```
-> describe dt.entity.cloud_application
+> smartscapeNodes K8S_DEPLOYMENT, K8S_STATEFULSET, K8S_DAEMONSET, K8S_CRONJOB
+> | fields k8s.workload.name, `tags:k8s.labels`, `tags:k8s.annotations`
+> | limit 5
 > ```
->
-> Los nombres verificados contra un tenant real son **`cloudApplicationLabels`** y **`kubernetesAnnotations`**. No es `kubernetesLabels`: ese campo no existe, y usarlo no degrada el enriquecimiento — **hace fallar la consulta entera**, así que se cae el módulo completo.
 >
 > Si las labels no llegan, el operador no las está enviando. Usa `manual` o `namespace`: la app no puede inventarlas.
 
 > **Las claves casi nunca son las del ejemplo.** En clusters reales lo habitual es encontrar convenciones propias ya establecidas (`squad`, `tribu`, `<dominio>/tier`, `application-code`) con muy buena cobertura. Antes de proponer reetiquetar nada, mira qué hay:
 >
 > ```
-> fetch dt.entity.cloud_application
-> | fieldsAdd sq = cloudApplicationLabels[`squad`]
+> smartscapeNodes K8S_DEPLOYMENT, K8S_STATEFULSET, K8S_DAEMONSET, K8S_CRONJOB
+> | fieldsAdd sq = `tags:k8s.labels`[`squad`]
 > | summarize total = count(), con_squad = countIf(isNotNull(sq))
 > ```
 >

@@ -1,4 +1,5 @@
 import type { OwnershipProvider } from "./types";
+import { excludedNamespacesClause } from "../queries/namespaces";
 
 /**
  * Proveedor por convención de namespace: el namespace ES el equipo.
@@ -38,8 +39,13 @@ export const namespaceProvider: OwnershipProvider = {
             appCode${s} = null`;
   },
 
-  filterOptions: `fetch dt.entity.cloud_application_namespace
-| fields squad = entity.name
+  // Los excluidos no son equipos: sin la exclusión, kube-system aparecería
+  // como squad en el selector.
+  filterOptions: `smartscapeNodes K8S_NAMESPACE
+| fields k8s.namespace.name
+${excludedNamespacesClause()}
+| summarize n = count(), by:{squad = k8s.namespace.name}
+| fields squad
 | fieldsAdd tier = null, tribu = null
 | sort squad asc`,
 

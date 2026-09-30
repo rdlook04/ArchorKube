@@ -1,25 +1,24 @@
 /**
  * Join reutilizable de tráfico APM por workload (Regla de Oro del ocioso).
- * Mapea servicio → workload vía process group "SpringBoot <workload>" y agrega
- * el total de requests del periodo. Un workload sin fila aquí no tiene servicio
- * APM medible (jobs, cronjobs, no-Java): la evidencia queda solo en CPU.
+ * Suma los requests del periodo por la dimensión `k8s.workload.name` que
+ * OneAgent pone en `dt.service.request.count`. Un workload sin fila aquí no
+ * tiene servicio APM medible (jobs, cronjobs, sin OneAgent): la evidencia
+ * queda solo en CPU.
  *
- * Limitación conocida: los requests son por servicio, no por clúster; si el
- * mismo workload corre en dos clústers, ambas filas comparten el total.
+ * No pasa por entidades de servicio ni de process group: los tenants nuevos
+ * no tienen entidades clásicas y la consulta fallaba entera. El id del
+ * servicio sale de la misma métrica (`dt.smartscape.service`, o
+ * `dt.entity.service` donde solo exista esa dimensión).
+ *
+ * Limitación conocida: los requests son por nombre de workload, no por
+ * clúster; si el mismo workload corre en dos clústers, ambas filas comparten
+ * el total.
  */
 export const serviceRequestsJoin = (sourceField: string, window = "7d"): string => `| lookup [
-    fetch dt.entity.service
-    | fieldsAdd p_id = runs_on[\`dt.entity.process_group\`]
-    | lookup [fetch dt.entity.process_group | fields id, entity.name],
-        sourceField:p_id, lookupField:id, prefix:"pg_"
-    | filter startsWith(pg_entity.name, "SpringBoot")
-    | fieldsAdd workload = replaceString(pg_entity.name, "SpringBoot ", "")
-    | fields service_id = id, workload
-    | lookup [
-        timeseries v = sum(dt.service.request.count), by:{dt.entity.service}, from:now()-${window}
-        | fieldsAdd req = arraySum(v)
-        | fields \`dt.entity.service\`, req | limit 10000
-      ], sourceField:service_id, lookupField:\`dt.entity.service\`, fields:{req}
-    | summarize req_total = sum(req), service_id = takeAny(service_id), by:{workload}
+    timeseries v = sum(dt.service.request.count),
+      by:{k8s.workload.name, dt.smartscape.service, dt.entity.service}, from:now()-${window}
+    | filter isNotNull(k8s.workload.name)
+    | fieldsAdd req = arraySum(v), sid = coalesce(dt.smartscape.service, dt.entity.service)
+    | summarize req_total = sum(req), service_id = takeAny(sid), by:{workload = k8s.workload.name}
     | limit 10000
   ], sourceField:${sourceField}, lookupField:workload, fields:{req_total, service_id}`;

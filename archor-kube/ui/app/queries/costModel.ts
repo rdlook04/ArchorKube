@@ -1,9 +1,5 @@
-import {
-  HOURS_PER_MONTH,
-  INSTANCE_HOURLY_USD,
-  USD_GB_MONTH,
-  USD_VCPU_MONTH,
-} from "../config/site";
+import { HOURS_PER_MONTH, USD_GB_MONTH, USD_VCPU_MONTH } from "../config/site";
+import { HOURLY_USD } from "../config/pricing";
 
 /**
  * Modelo de costos para estimar la pérdida mensual (FinOps).
@@ -15,23 +11,27 @@ import {
  * la flota entera y no solo con un tipo de máquina, siempre que los tipos
  * guarden proporción entre tamaño y precio.
  */
-export { HOURS_PER_MONTH, INSTANCE_HOURLY_USD, USD_GB_MONTH, USD_VCPU_MONTH };
+export { HOURS_PER_MONTH, USD_GB_MONTH, USD_VCPU_MONTH };
 
 /**
  * Cláusula DQL que agrega `precio_hora` según `instance_type`. Los tipos sin
  * precio conocido quedan nulos, para que se vean como hueco y no se confundan
  * con gasto cero.
+ *
+ * La tabla viaja en la consulta como `data` y se une con `lookup`: con una
+ * base de precios de lista son cientos de tipos, y un `if` anidado por tipo no
+ * escala.
  */
 export const instancePriceClause = (): string => {
-  const entries = Object.entries(INSTANCE_HOURLY_USD);
+  const entries = Object.entries(HOURLY_USD);
   // Sin tabla de precios el campo se emite en null igual: los módulos que lo
   // usan siguen corriendo y muestran el gasto como desconocido, en vez de
   // fallar la consulta entera por un dato de configuración que falta.
   if (entries.length === 0) return "| fieldsAdd precio_hora = null";
-  const body = entries
-    .map(([sku, price]) => `instance_type == "${sku}", ${price}`)
-    .join(", else: if(");
-  return `| fieldsAdd precio_hora = if(${body}, else: null${")".repeat(entries.length)}`;
+  const rows = entries
+    .map(([sku, price]) => `record(t = "${sku.replace(/["\\]/g, "")}", p = ${Number(price)})`)
+    .join(", ");
+  return `| lookup [data ${rows}], sourceField:instance_type, lookupField:t, fields:{precio_hora = p}`;
 };
 
 /**

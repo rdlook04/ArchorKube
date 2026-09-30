@@ -3,9 +3,16 @@ import { stateClient } from "@dynatrace-sdk/client-state";
 import {
   EXCLUDED_NAMESPACES_CONTAINING,
   EXCLUDED_NAMESPACES_EXACT,
-  INSTANCE_HOURLY_USD,
   OWNERSHIP_KEYS,
 } from "../config/site";
+import {
+  HOURLY_USD,
+  LIST_BASE,
+  OWN_PRICES,
+  PRICE_BASE,
+  listBaseOf,
+  pricingSource,
+} from "../config/pricing";
 import {
   EXTRA_FILTERS,
   INVALID_EXTRA_FILTERS,
@@ -15,6 +22,11 @@ import {
 import type { Lang, Localized } from "../i18n";
 import { ownership } from "../ownership";
 import { excludedNamespacesClause } from "../queries/namespaces";
+import {
+  WORKLOAD_ANNOTATIONS,
+  WORKLOAD_LABELS,
+  WORKLOAD_NODES,
+} from "../queries/workloads";
 import type { Records } from "./runQuery";
 
 /**
@@ -181,8 +193,8 @@ const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
     return {
       status: "warn",
       detail: l(
-        "No Kubernetes workloads found in dt.entity.cloud_application.",
-        "No se encontraron workloads de Kubernetes en dt.entity.cloud_application.",
+        "No Kubernetes workloads found in Smartscape.",
+        "No se encontraron workloads de Kubernetes en Smartscape.",
       ),
     };
   }
@@ -481,6 +493,28 @@ export const CHECKS: SetupCheck[] = [
   },
   {
     kind: "query",
+    id: "k8s-workloads",
+    group: "kubernetes",
+    title: {
+      en: "Kubernetes workloads in Smartscape",
+      es: "Workloads de Kubernetes en Smartscape",
+    },
+    affects: {
+      en: "All modules (filters, owners, Tiers)",
+      es: "Todos los módulos (filtros, dueños, Tiers)",
+    },
+    fix: {
+      en: "Every module reads workloads and their labels from Smartscape. Check that the Dynatrace Operator reports Kubernetes objects and that the app has the storage:smartscape:read scope.",
+      es: "Todos los módulos leen los workloads y sus labels de Smartscape. Revisa que el Dynatrace Operator reporte los objetos de Kubernetes y que la app tenga el scope storage:smartscape:read.",
+    },
+    query: `${WORKLOAD_NODES} | summarize n = count()`,
+    evaluate: presence(
+      (n) => ({ en: `${n} workload(s) found.`, es: `${n} workload(s) encontrados.` }),
+      { en: "No Kubernetes workloads found.", es: "No se encontraron workloads de Kubernetes." },
+    ),
+  },
+  {
+    kind: "query",
     id: "k8s-requests",
     group: "kubernetes",
     title: {
@@ -661,10 +695,16 @@ export const CHECKS: SetupCheck[] = [
       en: "Idle confirms a workload only when APM shows no traffic. Without services, verdicts stay as 'no APM data'. Enable code-level monitoring (OneAgent) on your workloads.",
       es: "Ociosos confirma un workload solo cuando APM no muestra tráfico. Sin servicios, los veredictos quedan como 'sin dato de APM'. Activa el monitoreo a nivel de código (OneAgent) en tus workloads.",
     },
+    // Por workload y no por servicio: es la dimensión con la que Ociosos une el
+    // tráfico, y agrupar por una dimensión ausente devuelve una fila null que
+    // contaba como un servicio.
     query:
-      "timeseries r = sum(dt.service.request.count), by:{dt.entity.service}, from: now()-2h | summarize n = count()",
+      "timeseries r = sum(dt.service.request.count), by:{k8s.workload.name}, from: now()-2h | filter isNotNull(k8s.workload.name) | summarize n = count()",
     evaluate: presence(
-      (n) => ({ en: `${n} service(s) with requests.`, es: `${n} servicio(s) con requests.` }),
+      (n) => ({
+        en: `${n} workload(s) with service requests.`,
+        es: `${n} workload(s) con requests de servicios.`,
+      }),
       {
         en: "No service requests: Idle can't confirm traffic.",
         es: "Sin requests de servicios: Ociosos no puede confirmar el tráfico.",
@@ -708,7 +748,7 @@ export const CHECKS: SetupCheck[] = [
       en: "Point the ownership provider at where your owners live: labels (keys in config/site.ts), namespaces, manual rules or your catalog (ownership/active.ts). The label discovery check below suggests keys.",
       es: "Apunta el proveedor de propiedad a donde viven tus dueños: labels (claves en config/site.ts), namespaces, reglas manuales o tu catálogo (ownership/active.ts). El chequeo de claves de labels, más abajo, sugiere claves.",
     },
-    query: `smartscapeNodes K8S_DEPLOYMENT, K8S_STATEFULSET
+    query: `${WORKLOAD_NODES}
 ${excludedNamespacesClause()}
 ${ownership.enrich("k8s.workload.name")}
 | summarize total = count(),
@@ -759,8 +799,7 @@ ${ownership.enrich("k8s.workload.name")}
       en: "Copy suggested ownership keys into OWNERSHIP_KEYS, and keys you want to filter by into EXTRA_FILTERS, both in ui/app/config/site.ts. Then re-run Setup.",
       es: "Copia las claves de propiedad sugeridas en OWNERSHIP_KEYS, y las claves por las que quieras filtrar en EXTRA_FILTERS, las dos en ui/app/config/site.ts. Después vuelve a correr Setup.",
     },
-    query:
-      "fetch dt.entity.cloud_application | fields lbl = cloudApplicationLabels, ann = kubernetesAnnotations | limit 10000",
+    query: `${WORKLOAD_NODES} | fields lbl = ${WORKLOAD_LABELS}, ann = ${WORKLOAD_ANNOTATIONS} | limit 10000`,
     maxRecords: 10000,
     evaluate: evaluateLabelDiscovery,
   },
@@ -820,14 +859,13 @@ ${ownership.enrich("k8s.workload.name")}
       es: "Gasto, USD en Rightsizing y Ociosos",
     },
     fix: {
-      en: "Add each instance type and its hourly price to INSTANCE_HOURLY_USD in ui/app/config/site.ts.",
-      es: "Agrega cada tipo de instancia y su precio por hora a INSTANCE_HOURLY_USD en ui/app/config/site.ts.",
+      en: 'Set PRICE_BASE in ui/app/config/site.ts to your cloud ("azure", "aws" or "gcp") to use its list prices. For on-premise nodes, a contract price or a type the list lacks, add it to INSTANCE_HOURLY_USD: your own prices always win. Name where they come from in PRICING_SOURCE.',
+      es: 'Pon PRICE_BASE en ui/app/config/site.ts con tu nube ("azure", "aws" o "gcp") para usar sus precios de lista. Para nodos on-premise, un precio de contrato o un tipo que la lista no tiene, agrégalo a INSTANCE_HOURLY_USD: tus precios siempre ganan. Di de dónde salen en PRICING_SOURCE.',
     },
     query:
-      "smartscapeNodes K8S_NODE | fields t = tags[`beta.kubernetes.io/instance-type`] | summarize n = count(), by:{t}",
+      "smartscapeNodes K8S_NODE | fields t = tags[`beta.kubernetes.io/instance-type`], region = tags[`topology.kubernetes.io/region`], os = tags[`kubernetes.io/os`] | summarize n = count(), by:{t, region, os}",
     evaluate: (records, lang) => {
       const l = pick(lang);
-      const known = new Set(Object.keys(INSTANCE_HOURLY_USD));
       const total = records.reduce((s, r) => s + Number(r.n ?? 0), 0);
       if (total === 0) {
         return {
@@ -838,29 +876,86 @@ ${ownership.enrich("k8s.workload.name")}
           ),
         };
       }
-      const missing = records.filter((r) => typeof r.t === "string" && !known.has(r.t));
-      const priced = total - missing.reduce((s, r) => s + Number(r.n ?? 0), 0);
-      const share = pct(priced, total);
+      const n = (rows: Records) => rows.reduce((s, r) => s + Number(r.n ?? 0), 0);
+      const type = (r: Records[number]) => (typeof r.t === "string" ? r.t : "");
+      const missing = records.filter((r) => !(type(r) in HOURLY_USD));
+      const share = pct(total - n(missing), total);
+      const items: string[] = [];
+
+      // Sin base elegida: si los tipos están en la lista de alguna nube, se
+      // sugiere esa base en vez de pedir los precios uno por uno.
+      if (PRICE_BASE === "none") {
+        const clouds = new Map<string, number>();
+        for (const r of missing) {
+          const base = listBaseOf(type(r));
+          if (base) clouds.set(base, (clouds.get(base) ?? 0) + Number(r.n ?? 0));
+        }
+        const [best] = [...clouds.entries()].sort((a, b) => b[1] - a[1]);
+        if (best) {
+          items.push(
+            l(
+              `${best[1]} of ${total} nodes have a list price in the ${best[0]} catalog: set PRICE_BASE = "${best[0]}" in ui/app/config/site.ts.`,
+              `${best[1]} de ${total} nodos tienen precio de lista en el catálogo de ${best[0]}: pon PRICE_BASE = "${best[0]}" en ui/app/config/site.ts.`,
+            ),
+          );
+        }
+      }
+      for (const r of missing.slice(0, 8)) {
+        items.push(
+          l(
+            `Missing price: ${type(r) || "(no type)"} (${Number(r.n)} nodes). Add it to INSTANCE_HOURLY_USD.`,
+            `Falta precio: ${type(r) || "(sin tipo)"} (${Number(r.n)} nodos). Agrégalo a INSTANCE_HOURLY_USD.`,
+          ),
+        );
+      }
+
+      // Lo que se valoriza con la lista y no con un precio propio: la lista es
+      // Linux y de una sola región, así que se dice cuándo es aproximada.
+      const list = LIST_BASE;
+      if (list) {
+        const fromList = records.filter(
+          (r) => !(type(r) in OWN_PRICES) && type(r) in list.prices,
+        );
+        const regions = [
+          ...new Set(
+            fromList
+              .map((r) => r.region)
+              .filter((v): v is string => typeof v === "string" && v !== list.region),
+          ),
+        ];
+        if (regions.length > 0) {
+          items.push(
+            l(
+              `List prices are from ${list.region}; your nodes run in ${regions.join(", ")}. Prices differ by region, so spend is an approximation. For exact figures, add your prices to INSTANCE_HOURLY_USD.`,
+              `Los precios de lista son de ${list.region}; tus nodos corren en ${regions.join(", ")}. El precio cambia según la región, así que el gasto es aproximado. Para cifras exactas, agrega tus precios a INSTANCE_HOURLY_USD.`,
+            ),
+          );
+        }
+        const windows = n(fromList.filter((r) => r.os === "windows"));
+        if (windows > 0) {
+          items.push(
+            l(
+              `${windows} Windows node(s) are priced as Linux, which is lower. Add their price to INSTANCE_HOURLY_USD.`,
+              `${windows} nodo(s) Windows se valorizan como Linux, que es más barato. Agrega su precio a INSTANCE_HOURLY_USD.`,
+            ),
+          );
+        }
+      }
+      items.push(l(`Prices: ${pricingSource("en")}.`, `Precios: ${pricingSource("es")}.`));
+
       return {
         status: share === 100 ? "ok" : "warn",
         detail:
-          known.size === 0
+          Object.keys(HOURLY_USD).length === 0
             ? l(
                 "No prices configured: spend shows as unknown instead of wrong.",
                 "No hay precios configurados: el gasto aparece como desconocido en vez de mal calculado.",
               )
             : l(
-                `${share}% of ${total} nodes have a configured price.`,
-                `El ${share}% de ${total} nodos tiene un precio configurado.`,
+                `${share}% of ${total} nodes have a price.`,
+                `El ${share}% de ${total} nodos tiene precio.`,
               ),
-        items: missing
-          .slice(0, 8)
-          .map((r) =>
-            l(
-              `Missing price: ${String(r.t)} (${Number(r.n)} nodes)`,
-              `Falta precio: ${String(r.t)} (${Number(r.n)} nodos)`,
-            ),
-          ),
+        items,
       };
     },
   },

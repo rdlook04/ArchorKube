@@ -12,6 +12,7 @@
  */
 
 import type { ExtraFilter } from "./extraFilters";
+import type { PriceBase } from "./listPrices";
 
 // ── Namespaces excluidos ─────────────────────────────────────────────────────
 
@@ -56,19 +57,32 @@ export const USD_GB_MONTH = 4.38;
 export const HOURS_PER_MONTH = 730;
 
 /**
- * Precio por hora de cada tipo de instancia presente en tus clusters. Al
- * aparecer un tipo nuevo hay que agregarlo aquí: los que falten quedan sin
- * precio, en vez de asumir uno equivocado.
+ * Base de precios de lista: "azure", "aws", "gcp" o "none".
  *
- * Vacío a propósito: una tabla de SKUs ajena da cifras con aspecto de
- * exactas que no lo son. Ejemplo de formato (Azure):
+ * Con una nube elegida, cada nodo toma el precio de lista on-demand (Linux)
+ * de su tipo de instancia, de una región de referencia por nube. La tabla
+ * está en `listPrices.ts` y la genera `tools/list-prices/update.mjs` desde
+ * las fuentes públicas de cada nube. Es un techo: con reservas o un acuerdo
+ * empresarial se paga menos. Setup sugiere la base según tus nodos.
+ *
+ * "none" para clusters on-premise o si solo quieres tus propios precios.
+ */
+export const PRICE_BASE: PriceBase = "none";
+
+/**
+ * Tus propios precios por hora, por tipo de instancia. Ganan siempre sobre la
+ * base de lista: úsalos para un precio de contrato, otra región, nodos
+ * Windows, on-premise o un tipo que la lista no tiene. Los tipos sin precio en
+ * ninguna de las dos capas quedan sin gasto, en vez de asumir uno equivocado.
+ *
+ * Ejemplo de formato (Azure):
  *
  *   Standard_D4s_v4: 0.192,
  */
 export const INSTANCE_HOURLY_USD: Record<string, number> = {};
 
-/** Nombre de la fuente de precios, para mostrarlo junto a las cifras. */
-export const PRICING_SOURCE = "No pricing source configured (set PRICING_SOURCE in site.ts)";
+/** De dónde salen tus propios precios, para mostrarlo junto a las cifras. */
+export const PRICING_SOURCE = "Own prices";
 
 // -- Claves de propiedad en labels/annotations ------------------------------
 
@@ -81,8 +95,8 @@ export const PRICING_SOURCE = "No pricing source configured (set PRICING_SOURCE 
  *
  * Para ver que hay en tu cluster:
  *
- *   fetch dt.entity.cloud_application
- *   | fields lbl = cloudApplicationLabels
+ *   smartscapeNodes K8S_DEPLOYMENT, K8S_STATEFULSET
+ *   | fields k8s.workload.name, lbl = `tags:k8s.labels`
  *   | limit 5
  *
  * Las annotations ganan sobre las labels: las labels de un pod template son
