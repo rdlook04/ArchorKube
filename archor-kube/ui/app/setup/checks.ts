@@ -20,7 +20,7 @@ import {
   isNamespaceScoped,
 } from "../config/extraFilters";
 import type { Lang, Localized } from "../i18n";
-import { ownership } from "../ownership";
+import { ownership, providerText } from "../ownership";
 import { excludedNamespacesClause } from "../queries/namespaces";
 import {
   WORKLOAD_ANNOTATIONS,
@@ -74,6 +74,15 @@ interface BaseCheck {
   affects: Localized;
   /** Qué hacer si falla, en texto plano. */
   fix: Localized;
+  /** Caminos para arreglarlo, con un ejemplo cada uno, cuando hay más de uno. */
+  guide?: FixOption[];
+}
+
+/** Una forma de arreglar un chequeo: cuándo aplica, qué hacer y un ejemplo. */
+export interface FixOption {
+  title: Localized;
+  body: Localized;
+  code?: { language: "typescript" | "yaml" | "bash" | "dql"; text: string };
 }
 
 export interface QueryCheck extends BaseCheck {
@@ -113,6 +122,101 @@ const presence = (
       : { status: missingStatus, detail: missing[lang] };
   };
 };
+
+// ─── Guía de propiedad ───────────────────────────────────────────────────────
+
+/**
+ * Los caminos para que los workloads tengan dueño y tier. El que instala no
+ * elige dueños ni tiers: esa es una decisión de la organización. Lo que sí
+ * puede es apuntar la app a donde ya están, o explicar cómo declararlos.
+ * Los ejemplos usan las claves configuradas, no unas fijas.
+ */
+const OWNERSHIP_GUIDE: FixOption[] = [
+  {
+    title: {
+      en: "1. Your workloads already carry owner labels",
+      es: "1. Tus workloads ya llevan labels de dueño",
+    },
+    body: {
+      en: "Point OWNERSHIP_KEYS in ui/app/config/site.ts at the keys you already use. The keys that come with the example (archorkube.io/*) are only a suggested convention. The \"Ownership label keys\" check lists the keys it finds, with sample values. A tier must look like a short scale (1, 2, 3).",
+      es: "Apunta OWNERSHIP_KEYS en ui/app/config/site.ts a las claves que ya usas. Las que trae el ejemplo (archorkube.io/*) son solo una convención sugerida. El chequeo \"Claves de labels de propiedad\" lista las claves que encuentra, con valores de muestra. Un tier tiene que parecer una escala corta (1, 2, 3).",
+    },
+    code: {
+      language: "typescript",
+      text: `export const OWNERSHIP_KEYS = {
+  tier: "tier",            // your key for the tier (1, 2, 3)
+  squad: "team",           // the owning team
+  tribu: "domain",         // tribe or business domain
+  appCode: "app.kubernetes.io/part-of",
+} as const;`,
+    },
+  },
+  {
+    title: {
+      en: "2. Each team has its own namespaces",
+      es: "2. Cada equipo tiene sus propios namespaces",
+    },
+    body: {
+      en: "Keep namespaceProvider as the last link of the chain in ui/app/ownership/active.ts: the namespace becomes the team. First exclude platform namespaces (monitoring, ingress, the operator) in EXCLUDED_NAMESPACES_EXACT, or they count as teams. A namespace gives the owner only: it can't tell the tier.",
+      es: "Deja namespaceProvider como último eslabón de la cadena en ui/app/ownership/active.ts: el namespace pasa a ser el equipo. Antes excluye los namespaces de plataforma (monitoreo, ingress, el operador) en EXCLUDED_NAMESPACES_EXACT, o cuentan como equipos. Un namespace da solo el dueño: no sabe el tier.",
+    },
+    code: {
+      language: "typescript",
+      text: `export const ownership = chainProviders(
+  manualProvider(),
+  labelsProvider,
+  namespaceProvider, // last: the namespace as the team
+);`,
+    },
+  },
+  {
+    title: {
+      en: "3. Label the workloads (a decision for your organization)",
+      es: "3. Etiquetar los workloads (una decisión de tu organización)",
+    },
+    body: {
+      en: `When the data doesn't exist anywhere, someone who knows the services has to decide it: who owns each one and how critical it is (tier 1 = most critical). ArchorKube doesn't invent it. The labels go on the Deployment or StatefulSet itself, not only on the pod template. If Helm, Argo CD or Flux manages the manifest, put them in the chart or manifest: a label added by hand can be removed on the next sync. Annotations override labels, useful to fix one workload without touching its selectors. Dynatrace picks up the change within minutes.`,
+      es: `Cuando el dato no existe en ningún lado, lo tiene que decidir alguien que conozca los servicios: quién es dueño de cada uno y qué tan crítico es (tier 1 = el más crítico). ArchorKube no lo inventa. Las labels van en el propio Deployment o StatefulSet, no solo en el template del pod. Si Helm, Argo CD o Flux manejan el manifiesto, ponlas en el chart o el manifiesto: una label puesta a mano se puede perder en la próxima sincronización. Las annotations ganan sobre las labels, útil para corregir un workload sin tocar sus selectores. Dynatrace toma el cambio en minutos.`,
+    },
+    code: {
+      language: "yaml",
+      text: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout-api
+  labels:
+    ${OWNERSHIP_KEYS.squad}: squad-payments
+    ${OWNERSHIP_KEYS.tier}: "1"
+    ${OWNERSHIP_KEYS.tribu}: commerce
+    ${OWNERSHIP_KEYS.appCode}: payments
+
+# Or on a running workload, to try it out:
+# kubectl label deployment checkout-api -n payments \\
+#   ${OWNERSHIP_KEYS.squad}=squad-payments ${OWNERSHIP_KEYS.tier}=1`,
+    },
+  },
+  {
+    title: {
+      en: "4. Owners live in a catalog, or a few resolve wrong",
+      es: "4. Los dueños están en un catálogo, o unos pocos salen mal",
+    },
+    body: {
+      en: "For a handful of workloads, or to give a tier where no label has one, add manual rules first in the chain (by exact name or by prefix). For a catalog (Backstage, a CMDB, a lookup table in Grail), write a provider in ui/app/ownership/port.ts. See docs/OWNERSHIP.md.",
+      es: "Para unos pocos workloads, o para dar un tier donde ninguna label lo tiene, agrega reglas manuales primero en la cadena (por nombre exacto o por prefijo). Para un catálogo (Backstage, un CMDB, una tabla lookup en Grail), escribe un proveedor en ui/app/ownership/port.ts. Ver docs/OWNERSHIP.md.",
+    },
+    code: {
+      language: "typescript",
+      text: `export const ownership = chainProviders(
+  manualProvider([
+    { match: "checkout-", prefix: true, squad: "squad-payments", tier: "1" },
+    { match: "batch-reconcile", squad: "squad-finops", tier: "3" },
+  ]),
+  labelsProvider,
+  namespaceProvider,
+);`,
+    },
+  },
+];
 
 // ─── Descubrimiento de labels ────────────────────────────────────────────────
 
@@ -303,18 +407,45 @@ const evaluateLabelDiscovery = (records: Records, lang: Lang): CheckResult => {
     );
   }
 
+  items.push(
+    l(
+      `Owner sources in use (ui/app/ownership/active.ts): ${providerText(ownership.label, "en")}.`,
+      `Fuentes de dueño en uso (ui/app/ownership/active.ts): ${providerText(ownership.label, "es")}.`,
+    ),
+  );
+
+  if (suggestions > 0) {
+    return {
+      status: "warn",
+      detail: l(
+        `Some ownership keys or optional filters need a change (${total} workloads scanned).`,
+        `Algunas claves de propiedad o filtros opcionales necesitan un cambio (${total} workloads revisados).`,
+      ),
+      items,
+    };
+  }
+  // Nadie lleva las claves de dueño configuradas: casi siempre son las del
+  // ejemplo, copiadas del .example. No es un error si los dueños salen de otra
+  // fuente de la cadena, pero decir "coinciden" sería falso.
+  const keyed = (["tier", "squad", "tribu"] as const).some(
+    (field) => (coverage.get(OWNERSHIP_KEYS[field]) ?? 0) > 0,
+  );
+  if (!keyed) {
+    return {
+      status: "info",
+      detail: l(
+        `None of the ${total} workloads carries the configured owner keys (${OWNERSHIP_KEYS.squad}, ${OWNERSHIP_KEYS.tier}, ${OWNERSHIP_KEYS.tribu}), so labels give no owner or tier. That's fine if owners come from another source: "Workloads with an owner" shows the real coverage.`,
+        `Ninguno de los ${total} workloads lleva las claves de dueño configuradas (${OWNERSHIP_KEYS.squad}, ${OWNERSHIP_KEYS.tier}, ${OWNERSHIP_KEYS.tribu}), así que las labels no dan dueño ni tier. Está bien si los dueños salen de otra fuente: "Workloads con dueño" muestra la cobertura real.`,
+      ),
+      items,
+    };
+  }
   return {
-    status: suggestions > 0 ? "warn" : "ok",
-    detail:
-      suggestions > 0
-        ? l(
-            `Some ownership keys or optional filters need a change (${total} workloads scanned).`,
-            `Algunas claves de propiedad o filtros opcionales necesitan un cambio (${total} workloads revisados).`,
-          )
-        : l(
-            `The configured label keys match what your workloads carry (${total} workloads scanned).`,
-            `Las claves configuradas coinciden con las labels de tus workloads (${total} workloads revisados).`,
-          ),
+    status: "ok",
+    detail: l(
+      `The configured label keys match what your workloads carry (${total} workloads scanned).`,
+      `Las claves configuradas coinciden con las labels de tus workloads (${total} workloads revisados).`,
+    ),
     items,
   };
 };
@@ -745,9 +876,10 @@ export const CHECKS: SetupCheck[] = [
       es: "Filtros, Huérfanos, Tiers, gráficas por squad",
     },
     fix: {
-      en: "Point the ownership provider at where your owners live: labels (keys in config/site.ts), namespaces, manual rules or your catalog (ownership/active.ts). The label discovery check below suggests keys.",
-      es: "Apunta el proveedor de propiedad a donde viven tus dueños: labels (claves en config/site.ts), namespaces, reglas manuales o tu catálogo (ownership/active.ts). El chequeo de claves de labels, más abajo, sugiere claves.",
+      en: "Owners and tiers come from the chain in ui/app/ownership/active.ts: the first source that answers wins, field by field. Pick the path that matches where your data is. The installer doesn't invent owners or tiers: when they don't exist anywhere, the organization decides them.",
+      es: "Dueños y tiers salen de la cadena de ui/app/ownership/active.ts: gana la primera fuente que responde, campo por campo. Elige el camino según dónde esté tu dato. Quien instala no inventa dueños ni tiers: cuando no existen en ningún lado, los decide la organización.",
     },
+    guide: OWNERSHIP_GUIDE,
     query: `${WORKLOAD_NODES}
 ${excludedNamespacesClause()}
 ${ownership.enrich("k8s.workload.name")}
@@ -773,6 +905,18 @@ ${ownership.enrich("k8s.workload.name")}
         `app code: ${pct(count(records, "with_app"), total)}%`,
       ];
       const status: CheckStatus = squad >= 80 ? "ok" : squad >= 40 ? "warn" : "fail";
+      // Con dueño pero sin ningún tier la app funciona, pero no puede ordenar
+      // los hallazgos por impacto de negocio, que es la mitad de su propósito.
+      if (status === "ok" && count(records, "with_tier") === 0) {
+        return {
+          status: "warn",
+          detail: l(
+            `${squad}% of ${total} workloads have an owner, but none has a tier: findings can't be ranked by business impact, and Tiers and Pending tiers show them as "no tier".`,
+            `El ${squad}% de ${total} workloads tiene dueño, pero ninguno tiene tier: los hallazgos no se pueden ordenar por impacto de negocio, y Tiers y Tiers pendientes los muestran "sin tier".`,
+          ),
+          items,
+        };
+      }
       return {
         status,
         detail: l(
@@ -801,6 +945,7 @@ ${ownership.enrich("k8s.workload.name")}
     },
     query: `${WORKLOAD_NODES} | fields lbl = ${WORKLOAD_LABELS}, ann = ${WORKLOAD_ANNOTATIONS} | limit 10000`,
     maxRecords: 10000,
+    guide: OWNERSHIP_GUIDE,
     evaluate: evaluateLabelDiscovery,
   },
   {

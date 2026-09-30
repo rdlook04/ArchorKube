@@ -93,12 +93,33 @@ const CheckRow = ({ check, result }: { check: SetupCheck; result?: CheckResult |
               <Accordion.Section id={`${check.id}-fix`}>
                 <Accordion.SectionLabel>{t.setup.howToFix}</Accordion.SectionLabel>
                 <Accordion.SectionContent>
-                  <Paragraph>{L(check.fix)}</Paragraph>
-                  {check.kind === "query" && (
-                    <CodeSnippet language="dql" showCopyAction>
-                      {check.query}
-                    </CodeSnippet>
-                  )}
+                  <Flex flexDirection="column" gap={16}>
+                    <Paragraph>{L(check.fix)}</Paragraph>
+                    {check.guide?.map((option) => (
+                      <Flex key={option.title.en} flexDirection="column" gap={6}>
+                        <Text textStyle="base-emphasized">{L(option.title)}</Text>
+                        <Paragraph>{L(option.body)}</Paragraph>
+                        {option.code && (
+                          <CodeSnippet language={option.code.language} showCopyAction>
+                            {option.code.text}
+                          </CodeSnippet>
+                        )}
+                      </Flex>
+                    ))}
+                    {check.kind === "query" && (
+                      <Flex flexDirection="column" gap={6}>
+                        <Text textStyle="small" style={{ color: Colors.Text.Neutral.Subdued }}>
+                          {L({
+                            en: "The query this check runs (you can paste it in a notebook):",
+                            es: "La consulta que corre este chequeo (puedes pegarla en un notebook):",
+                          })}
+                        </Text>
+                        <CodeSnippet language="dql" showCopyAction>
+                          {check.query}
+                        </CodeSnippet>
+                      </Flex>
+                    )}
+                  </Flex>
                 </Accordion.SectionContent>
               </Accordion.Section>
             </Accordion>
