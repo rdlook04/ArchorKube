@@ -10,6 +10,17 @@ Un cluster grande no tiene un problema de detección: tiene un problema de asign
 
 Corre sobre AppEngine y consulta Grail con DQL. No instala nada en tus clusters.
 
+### Cómo se ve
+
+![Portada de ArchorKube: hallazgos, desperdicio estimado y cumplimiento](docs/img/home-overview.jpg)
+
+| | |
+|---|---|
+| ![Rightsizing](docs/img/rightsizing.jpg) | ![Riesgo de caída](docs/img/risk.jpg) |
+| ![Guía de buenas prácticas](docs/img/guide-rule.jpg) | ![Setup: dueños y tabla para completar](docs/img/setup-ownership-bars.jpg) |
+
+**[Ver todas las pantallas →](docs/GALLERY.md)** Cada módulo, la Guía, Setup y Settings, capturados en un tenant sandbox real.
+
 ---
 
 ## Los módulos

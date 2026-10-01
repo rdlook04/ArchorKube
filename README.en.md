@@ -10,6 +10,17 @@ A large cluster doesn't have a detection problem: it has an assignment problem. 
 
 It runs on AppEngine and queries Grail with DQL. It installs nothing in your clusters.
 
+### What it looks like
+
+![ArchorKube overview: findings, estimated waste and compliance](docs/img/home-overview.jpg)
+
+| | |
+|---|---|
+| ![Rightsizing](docs/img/rightsizing.jpg) | ![Outage risk](docs/img/risk.jpg) |
+| ![Best-practice guide](docs/img/guide-rule.jpg) | ![Setup: owners and the table to complete](docs/img/setup-ownership-bars.jpg) |
+
+**[See every screen →](docs/GALLERY.md)** Every module, the Guide, Setup and Settings, captured on a real sandbox tenant.
+
 ---
 
 ## The modules
