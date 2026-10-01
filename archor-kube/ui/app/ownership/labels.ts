@@ -115,16 +115,10 @@ export const labelsProvider: OwnershipProvider = {
 | sort squad asc`,
 
   /**
-   * El inventario es el conjunto de workloads etiquetados. Incluye a propósito
-   * los que NO tienen dueño: esa fila es el hallazgo más accionable de la
-   * página, no un error de la consulta.
+   * Sin catálogo propio: las labels se leen workload por workload. Tiers usa
+   * entonces el inventario de workloads vivos enriquecido por la cadena
+   * completa (tabla de dueños, labels, namespace). Con un catálogo de labels,
+   * Tiers ignoraba las otras fuentes y mostraba todo sin dueño.
    */
-  catalog: `${SOURCE.nodes}
-| fields repo = ${SOURCE.nameField}, lbl = ${SOURCE.labelsField}, ann = ${SOURCE.annotationsField}
-| fieldsAdd tier = ${readKey(OWNERSHIP_KEYS.tier, "")},
-            squad = ${readKey(OWNERSHIP_KEYS.squad, "")},
-            domain = ${readKey(OWNERSHIP_KEYS.tribu, "")},
-            application = ${readKey(OWNERSHIP_KEYS.appCode, "")}
-| fields repo, application, squad, tier, domain
-| limit 10000`,
+  catalog: null,
 };
