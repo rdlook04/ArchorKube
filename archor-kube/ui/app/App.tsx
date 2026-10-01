@@ -1,7 +1,7 @@
 import { PageLayout } from "@dynatrace/strato-components/layouts";
 import { ToastContainer } from "@dynatrace/strato-components/notifications";
 import React, { useState } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { Bottlenecks } from "./pages/Bottlenecks";
 import { Compliance } from "./pages/Compliance";
 import { ControlPlane } from "./pages/ControlPlane";
@@ -56,6 +56,8 @@ export const App = () => {
               <Route path="/guide" element={<Guide />} />
               <Route path="/setup" element={<Setup />} />
               <Route path="/settings" element={<Settings />} />
+              {/* Un enlace viejo o mal armado lleva a la portada, no a una página vacía. */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </PageLayout.Content>
           <CommunityNotice show={noticeOpen} onClose={() => setNoticeOpen(false)} />
